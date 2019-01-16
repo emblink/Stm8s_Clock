@@ -161,7 +161,7 @@ INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
     uint32_t currentTick = getCurrentTick();
     if (currentTick - lastTick > DEBOUNCE_TIME) {
       if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN))
-        GPIOC->ODR ^= LED_PIN; // LED PIN
+        GPIO_WriteReverse(GPIOC, RED_LED_PIN);
     }
     lastTick = currentTick;
 }
