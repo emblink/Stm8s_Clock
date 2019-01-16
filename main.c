@@ -26,7 +26,8 @@ int main( void )
   CLK_PeripheralClockConfig(CLK_PERIPHERAL_I2C, ENABLE);
   CLK_PeripheralClockConfig(CLK_PERIPHERAL_SPI, ENABLE);
   
-  GPIO_Init(GPIOC, LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
+  GPIO_Init(GPIOC, RED_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
+  GPIO_Init(GPIOD, GREEN_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
   GPIO_Init(GPIOC, BUTTON_PIN, GPIO_MODE_IN_FL_IT);
   EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_RISE_FALL);
 
@@ -41,7 +42,7 @@ int main( void )
   
   while(1)
   {
-    //GPIOC->ODR ^= (1 << 3); // LED PIN
+    GPIO_WriteReverse(GPIOD, GREEN_LED_PIN);
     delayMs(1000);
   }
   return 0;

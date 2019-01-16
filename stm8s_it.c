@@ -33,6 +33,18 @@
 #include "stm8s_tim1.h"
 #include "main.h"
 
+
+static volatile uint32_t timeTick = 0;
+
+uint32_t getCurrentTick()
+{ 
+  uint32_t tick = 0;
+  disableInterrupts();
+  tick = timeTick;  
+  enableInterrupts();
+  return tick;
+}
+
 /** @addtogroup Template_Project
   * @{
   */
@@ -144,7 +156,14 @@ INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
-    GPIOC->ODR ^= LED_PIN; // LED PIN
+    #define DEBOUNCE_TIME (10)
+    static uint32_t lastTick = 0;
+    uint32_t currentTick = getCurrentTick();
+    if (currentTick - lastTick > DEBOUNCE_TIME) {
+      if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN))
+        GPIO_WriteReverse(GPIOC, RED_LED_PIN);
+    }
+    lastTick = currentTick;
 }
 
 /**
@@ -233,7 +252,7 @@ INTERRUPT_HANDLER(TIM1_UPD_OVF_TRG_BRK_IRQHandler, 11)
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
-  GPIOC->ODR ^= (1 << 3); // LED PIN
+  timeTick++;
   TIM1_ClearITPendingBit(TIM1_IT_UPDATE); //  | TIM1_IT_TRIGGER | TIM1_IT_BREAK
 }
 
