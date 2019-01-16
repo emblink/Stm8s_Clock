@@ -1,0 +1,2 @@
+#define LED_PIN GPIO_PIN_3
+#define BUTTON_PIN GPIO_PIN_4
