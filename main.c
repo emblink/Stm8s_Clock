@@ -5,12 +5,15 @@
 #include "stm8s_it.h"
 #include "stm8s_tim1.h"
 #include "stm8s_clk.h"
+#include "stm8s_spi.h"
 
 void delayMs(uint16_t delay)
 {
   while(delay--)
     for (uint16_t i = 0; i < 2000; i++);
 }
+
+void spiSendData(const uint8_t data[], uint16_t len);
 
 int main( void )
 {
@@ -38,14 +41,43 @@ int main( void )
   TIM1_CounterModeConfig(TIM1_COUNTERMODE_UP);
   TIM1_Cmd(ENABLE);
   
-  enableInterrupts();
+  SPI_DeInit();
+
+  GPIO_Init(GPIOC, SPI_CS_PIN, GPIO_MODE_OUT_PP_HIGH_SLOW);
+  GPIO_Init(GPIOC, SPI_MOSI_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
+  GPIO_Init(GPIOC, SPI_SCK_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
   
+  SPI_Init(SPI_FIRSTBIT_MSB, SPI_BAUDRATEPRESCALER_2, SPI_MODE_MASTER, 
+           SPI_CLOCKPOLARITY_HIGH, SPI_CLOCKPHASE_2EDGE, 
+           SPI_DATADIRECTION_1LINE_TX, SPI_NSS_SOFT, 0xA5);
+  SPI_CalculateCRCCmd(DISABLE);
+  SPI_Cmd(ENABLE);
+
+  
+  enableInterrupts();
+  static const uint8_t data[] = {0x01, 0x02, 0x03, 0x04, 0x05}; 
   while(1)
   {
-    GPIO_WriteReverse(GPIOD, GREEN_LED_PIN);
+    
     delayMs(1000);
+    GPIO_WriteLow(GPIOD, GREEN_LED_PIN);
+    spiSendData(data, sizeof(data));
+    GPIO_WriteHigh(GPIOD, GREEN_LED_PIN);
+    
   }
   return 0;
+}
+
+void spiSendData(const uint8_t data[], uint16_t len){
+    GPIO_WriteLow(GPIOC, SPI_CS_PIN);
+    
+    /*!< Wait until the transmit buffer is empty */
+    while (SPI_GetFlagStatus(SPI_FLAG_TXE) == RESET);
+    uint16_t i = 0;
+    while(i < len)
+        SPI_SendData(data[i++]);
+    
+    GPIO_WriteHigh(GPIOC, SPI_CS_PIN);
 }
 
 #ifdef USE_FULL_ASSERT

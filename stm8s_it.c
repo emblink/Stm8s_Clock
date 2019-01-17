@@ -151,19 +151,28 @@ INTERRUPT_HANDLER(EXTI_PORTB_IRQHandler, 4)
   * @param  None
   * @retval None
   */
+    #define DEBOUNCE_TIME (80)
+    static volatile uint32_t lastTick = 0;
+    static volatile uint32_t currentTick = 0; 
+static uint32_t count = 0;
+static void func(void)
+{
+    count++;
+}
+
 INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 {
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
-    #define DEBOUNCE_TIME (10)
-    static uint32_t lastTick = 0;
-    uint32_t currentTick = getCurrentTick();
+  if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN)) {
+    currentTick = getCurrentTick();
     if (currentTick - lastTick > DEBOUNCE_TIME) {
-      if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN))
-        GPIO_WriteReverse(GPIOC, RED_LED_PIN);
+      GPIO_WriteReverse(GPIOC, RED_LED_PIN);
+      func();
     }
-    lastTick = currentTick;
+  }
+  lastTick = currentTick;
 }
 
 /**
