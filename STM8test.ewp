@@ -256,7 +256,9 @@
                 </option>
                 <option>
                     <name>CCIncludePath2</name>
-                    <state></state>
+                    <state>D:\stm8s</state>
+                    <state>D:\stm8s\src</state>
+                    <state>D:\stm8s\StsPeriph_Lib</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1603,49 +1605,73 @@
             <data />
         </settings>
     </configuration>
+    <group>
+        <name>StdPeriphLib</name>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_clk.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_clk.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_conf.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_exti.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_exti.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_gpio.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_gpio.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_it.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_it.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_spi.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_spi.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_tim1.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_tim1.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_tim2.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_tim2.h</name>
+        </file>
+    </group>
     <file>
-        <name>$PROJ_DIR$\main.c</name>
+        <name>$PROJ_DIR$\src\ledPanel.c</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\stm8s.h</name>
+        <name>$PROJ_DIR$\src\ledPanel.h</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\stm8s_clk.c</name>
+        <name>$PROJ_DIR$\src\main.c</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\stm8s_clk.h</name>
+        <name>$PROJ_DIR$\src\main.h</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\stm8s_conf.h</name>
+        <name>$PROJ_DIR$\src\max7219.c</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\stm8s_exti.c</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm8s_exti.h</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm8s_gpio.c</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm8s_gpio.h</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm8s_it.c</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm8s_it.h</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm8s_spi.c</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm8s_spi.h</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm8s_tim1.c</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm8s_tim1.h</name>
+        <name>$PROJ_DIR$\src\max7219.h</name>
     </file>
 </project>
