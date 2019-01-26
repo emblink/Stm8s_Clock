@@ -1657,6 +1657,9 @@
         </file>
     </group>
     <file>
+        <name>$PROJ_DIR$\src\font.h</name>
+    </file>
+    <file>
         <name>$PROJ_DIR$\src\ledPanel.c</name>
     </file>
     <file>

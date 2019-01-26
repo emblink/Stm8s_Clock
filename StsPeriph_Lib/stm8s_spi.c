@@ -422,6 +422,36 @@ void SPI_ClearITPendingBit(SPI_IT_TypeDef SPI_IT)
   SPI->SR = (uint8_t)(~itpos);
   
 }
+#include "main.h"
+#include "stm8s_gpio.h"
+
+void spiSendData(const uint8_t data[], uint16_t len){
+    for (uint16_t i = 0; i < len; i++) {
+      /*!< Wait until the transmit buffer is empty */
+      while (SPI_GetFlagStatus(SPI_FLAG_TXE) == RESET);
+      SPI->DR = data[i];
+    }
+}
+
+void spiSetCsPin(bool state)
+{
+  if (state)
+    GPIO_WriteHigh(GPIOC, SPI_CS_PIN);
+  else 
+    GPIO_WriteLow(GPIOC, SPI_CS_PIN);
+}
+
+/*
+void spiSendData(const uint8_t data[], uint16_t len){
+    //!< Wait until the transmit buffer is empty
+    GPIO_WriteLow(GPIOC, SPI_CS_PIN);
+    for (uint16_t i = 0; i < len; i++) {
+      while (SPI_GetFlagStatus(SPI_FLAG_TXE) == RESET);
+      SPI->DR = data[i];
+    }
+    GPIO_WriteHigh(GPIOC, SPI_CS_PIN);
+}
+*/
 
 /**
   * @}

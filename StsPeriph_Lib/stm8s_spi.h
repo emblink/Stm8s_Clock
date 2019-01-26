@@ -322,6 +322,8 @@ void SPI_ClearFlag(SPI_Flag_TypeDef SPI_FLAG);
 ITStatus SPI_GetITStatus(SPI_IT_TypeDef SPI_IT);
 void SPI_ClearITPendingBit(SPI_IT_TypeDef SPI_IT);
 
+void spiSendData(const uint8_t data[], uint16_t len);
+void spiSetCsPin(bool state);
 /**
   * @}
   */

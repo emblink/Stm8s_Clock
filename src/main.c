@@ -6,19 +6,14 @@
 #include "stm8s_tim1.h"
 #include "stm8s_clk.h"
 #include "stm8s_spi.h"
-
-  static const uint8_t data[] = {
-    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-    0x0A, 0x0B, 0x0C, 0x0D, 0x0F
-  };
+#include "font.h"
+#include "ledPanel.h"
 
 void delayMs(uint16_t delay)
 {
   while(delay--)
     for (uint16_t i = 0; i < 2000; i++);
 }
-
-void spiSendData(const uint8_t data[], uint16_t len);
 
 int main( void )
 {
@@ -51,38 +46,50 @@ int main( void )
   GPIO_Init(GPIOC, SPI_CS_PIN, GPIO_MODE_OUT_PP_HIGH_SLOW);
   GPIO_Init(GPIOC, SPI_MOSI_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
   GPIO_Init(GPIOC, SPI_SCK_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
-  
+
   SPI_Init(SPI_FIRSTBIT_MSB, SPI_BAUDRATEPRESCALER_2, SPI_MODE_MASTER, 
-           SPI_CLOCKPOLARITY_HIGH, SPI_CLOCKPHASE_2EDGE, 
-           SPI_DATADIRECTION_1LINE_TX, SPI_NSS_SOFT, 0xA5);
+           SPI_CLOCKPOLARITY_LOW, SPI_CLOCKPHASE_1EDGE, 
+           SPI_DATADIRECTION_1LINE_TX, SPI_NSS_SOFT, 0x07);
   SPI_CalculateCRCCmd(DISABLE);
   SPI_Cmd(ENABLE);
 
-  
+  ledPanelInit();
+  const uint8_t number0[] = { 0x3E, 0x7F, 0x71, 0x59, 0x4D, 0x7F, 0x3E, 0x00 };
+
   enableInterrupts();
- 
+  
+  //ledPanelSendSymbol(PANEL_0, number0);
+  //ledPanelSendSymbol(PANEL_1, number0);
+  //ledPanelSendSymbol(PANEL_2, number0);
+  //ledPanelSendSymbol(PANEL_3, number0);
+  
+  //ledPanleClearPanel(PANEL_0);
+  //ledPanleClearPanel(PANEL_3);
+
+  
+  ledPanelSendCommand(PANEL_0, PANEL_TURN_OFF);
+  ledPanelSendCommand(PANEL_1, PANEL_TURN_OFF);
+  /*
+  ledPanelSendCommand(PANEL_2, PANEL_TURN_OFF);
+  ledPanelSendCommand(PANEL_3, PANEL_TURN_OFF);
+  */
+  
   while(1)
   {
-    
-    //delayMs(1000);
-    GPIO_WriteHigh(GPIOD, GREEN_LED_PIN);
-    spiSendData(data, sizeof(data));
-    GPIO_WriteLow(GPIOD, GREEN_LED_PIN);
-    
+    GPIO_WriteReverse(GPIOD, GREEN_LED_PIN);
+    ledPanleClearPanel(PANEL_0);
+    ledPanleClearPanel(PANEL_1);
+    ledPanleClearPanel(PANEL_2);
+    ledPanleClearPanel(PANEL_3);
+    delayMs(1000);
+    GPIO_WriteReverse(GPIOD, GREEN_LED_PIN);
+    ledPanelSendSymbol(PANEL_0, number0);
+    ledPanelSendSymbol(PANEL_1, number0);
+    ledPanelSendSymbol(PANEL_2, number0);
+    ledPanelSendSymbol(PANEL_3, number0);
+    delayMs(1000);
   }
   return 0;
-}
-
-void spiSendData(const uint8_t data[], uint16_t len){
-    GPIO_WriteLow(GPIOC, SPI_CS_PIN);
-    
-    /*!< Wait until the transmit buffer is empty */
-    while (SPI_GetFlagStatus(SPI_FLAG_TXE) == RESET);
-    uint16_t i = 0;
-    while(i < len)
-        SPI_SendData(data[i++]);
-    
-    GPIO_WriteHigh(GPIOC, SPI_CS_PIN);
 }
 
 #ifdef USE_FULL_ASSERT
