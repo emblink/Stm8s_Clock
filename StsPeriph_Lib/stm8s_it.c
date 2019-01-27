@@ -414,6 +414,7 @@ INTERRUPT_HANDLER(TIM1_CAP_COM_IRQHandler, 12)
   */
 INTERRUPT_HANDLER(I2C_IRQHandler, 19)
 {
+  
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */

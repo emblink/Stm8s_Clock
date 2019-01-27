@@ -1626,10 +1626,22 @@
             <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_exti.h</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_flash.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_flash.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_gpio.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_gpio.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_i2c.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_i2c.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_it.c</name>
@@ -1655,7 +1667,19 @@
         <file>
             <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_tim2.h</name>
         </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_wwdg.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_wwdg.h</name>
+        </file>
     </group>
+    <file>
+        <name>$PROJ_DIR$\src\DS1307.c</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\src\DS1307.h</name>
+    </file>
     <file>
         <name>$PROJ_DIR$\src\font.h</name>
     </file>
