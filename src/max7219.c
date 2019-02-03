@@ -4,6 +4,8 @@
 #include "main.h"
 #include "max7219.h"
 
+#define NULL 0
+
 typedef enum Max7219Register {
     MAX7219_NOOP_REG = 0x00,
     MAX7219_ROW_1_REG = 0x01,
@@ -21,115 +23,115 @@ typedef enum Max7219Register {
     MAX7219_DISPLAY_TEST_REG = 0xF
 } Max7219Register;
 
-static void max7219SendCommand(uint8_t panleIndex, 
-                               Max7219Register max7219Register, 
-                               uint8_t commandData);
+static uint8_t *dataBuff;
+static bool isMax7219Inited = FALSE;
+static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register reg, uint8_t arg);
+static void max7219SendData(const uint8_t dataBuff[], uint16_t size);
 
-static void max7219SendCommandToAll(Max7219Register max7219Register, 
-                                    uint8_t commandData);
-
-static void max7219FillRow(uint8_t panelNumber, Max7219Register max7219Register, uint8_t symbolByte, uint8_t rowBuffer[]);
-static void max7219SendRow(Max7219Register max7219RowRegister, const uint8_t rowData[]);
-
-void max7219Init(void)
+static inline void spiPushByte(uint8_t byte)
 {
-  max7219SendCommandToAll(MAX7219_SHUTDOWN_REG, 0x01); // Turn On. Normal Operation
-  max7219SendCommandToAll(MAX7219_SCAN_LIMIT_REG, 0x07); // Activate all rows.
-  max7219SendCommandToAll(MAX7219_INTENSITY_REG, 0x01); // 0 - 15 levels of Intensity.
-  max7219SendCommandToAll(MAX7219_DECODE_MODE_REG, 0x00); // No decode mode.
-  max7219SendCommandToAll(MAX7219_DISPLAY_TEST_REG, 0x00); // Display-Test off.
-  max7219ClearAllPanels();
-}
-
-void max7219SetTestMode(uint8_t panleIndex, bool testEnable)
-{
-  max7219SendCommand(panleIndex, MAX7219_DISPLAY_TEST_REG, testEnable);
-}
-
-void max7219SetPanelState(uint8_t panleIndex, bool panelEnable)
-{
-  max7219SendCommand(panleIndex, MAX7219_SHUTDOWN_REG, panelEnable);
-}
-
-void max7219SetIntensity(uint8_t panleIndex, uint8_t intensity)
-{
-  max7219SendCommand(panleIndex, MAX7219_INTENSITY_REG, intensity);
-}
-
-static void max7219SendCommand(uint8_t panelIndex, 
-                               Max7219Register max7219Register, 
-                               uint8_t commandData)
-{ 
-  uint8_t dataBuff[PANEL_COUNT * 2];
-  max7219FillRow(panelIndex, max7219Register, commandData, dataBuff);
-  max7219SendRow(max7219Register, dataBuff);
-}
-
-/*
-inline static void spiSendByte(uint8_t byte)
-{
-  while (SPI_GetFlagStatus(SPI_FLAG_TXE) == RESET);
-  SPI->DR = byte;
-}
-*/
-
-void max7219SendCommandToAll(Max7219Register max7219Register, uint8_t commandData)
-{
-  GPIOC->ODR &= ~SPI_CS_PIN;
-  for (uint8_t i = 0; i < PANEL_COUNT; i++) {
-    SPI->DR = max7219Register;
+	SPI->DR = byte;
     while (!(SPI->SR & SPI_FLAG_TXE));
-    SPI->DR = commandData;
-    while (!(SPI->SR & SPI_FLAG_TXE));
-  }
-  GPIOC->ODR |= SPI_CS_PIN;
 }
 
-static void max7219SendRow(Max7219Register max7219RowRegister, const uint8_t rowData[PANEL_COUNT * 2])
+static inline void max7219PushData(void)
 {
-  GPIOC->ODR &= ~SPI_CS_PIN;
-  for (uint8_t i = 0; i < PANEL_COUNT * 2; i++) {
-    SPI->DR = rowData[i];
-    while (!(SPI->SR & SPI_FLAG_TXE));
-  }
-  GPIOC->ODR |= SPI_CS_PIN;
+	GPIOC->ODR &= ~SPI_CS_PIN;
 }
 
-void max7219SendSymbol(uint8_t panelNumber, const uint8_t symbolData[8])
+static inline void max7219LatchData(void)
 {
-  uint8_t rowBuff[PANEL_COUNT * 2];
-  for (Max7219Register reg = MAX7219_ROW_1_REG; reg <= MAX7219_ROW_8_REG; reg++) {
-    max7219FillRow(panelNumber, reg, symbolData[reg - 1], rowBuff);
-    max7219SendRow(reg, rowBuff);
-  }
+	GPIOC->ODR |= SPI_CS_PIN;
 }
 
-static void max7219FillRow(uint8_t panelNumber, Max7219Register max7219Register, uint8_t symbolByte, uint8_t rowBuffer[])
+bool max7219Init(uint8_t buff[], uint16_t buffSize)
 {
-  uint8_t buffIdx = 0;
-  for (uint8_t i = 0; i < PANEL_COUNT; i++) {
-    if (i == PANEL_COUNT - panelNumber - 1) {
-      rowBuffer[buffIdx++] = max7219Register;
-      rowBuffer[buffIdx++] = symbolByte;
-    } else {
-      rowBuffer[buffIdx++] = 0x00; // No Operation
-      rowBuffer[buffIdx++] = 0x00; // No Operation
-    }
-  }
+	if (buff == NULL || buffSize < MAX7219_BUFF_SIZE)
+		return FALSE;
+	
+	dataBuff = buff;
+	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_SHUTDOWN_REG, MAX7219_STATE_ENABLE); // Turn On. Normal Operation
+	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_INTENSITY_REG, MAX7219_INTENSITY_LEVEL_DEFAULT);
+	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_DISPLAY_TEST_REG, MAX7219_TEST_DISABLE); // Display-Test off.
+	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_SCAN_LIMIT_REG, 0x07); // Activate all rows.
+	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_DECODE_MODE_REG, 0x00); // No decode mode.
+	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+	return isMax7219Inited = TRUE;
 }
 
-void max7219ClearAllPanels(void)
+bool max7219SendCommand(Max7219Number max7219Number, Max7219Command cmd, Max7219CommandArgument arg)
 {
-  const uint8_t clearBuff[PANEL_COUNT * 2] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  for (Max7219Register reg = MAX7219_ROW_1_REG; reg <= MAX7219_ROW_8_REG; reg++)
-    max7219SendRow(reg, clearBuff);
+	if (max7219Number > MAX7219_NUMBER_COUNT || !isMax7219Inited)
+		return FALSE;
+	
+	Max7219Register reg;
+	switch(cmd) {
+	case MAX7219_SET_STATE:
+		reg = MAX7219_SHUTDOWN_REG;
+		if (arg > MAX7219_STATE_ENABLE)
+			return FALSE;
+		break;
+	case MAX7219_SET_TEST_MODE:
+		reg = MAX7219_DISPLAY_TEST_REG;
+		if (arg > MAX7219_TEST_ENABLE)
+		break;
+	case MAX7219_SET_INTENSITY_LEVEL:
+		reg = MAX7219_INTENSITY_REG;
+		if (arg > MAX7219_INTENSITY_LEVEL_15)
+			return FALSE;
+		break;
+	default:
+		return FALSE;
+	}
+	max7219FillCommandBuff(max7219Number, reg, arg);
+	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+	return TRUE;
 }
 
-void max7219ClearPanel(uint8_t panelNumber)
+void max7219SendSymbol(Max7219Number max7219Number, const uint8_t symbol[FONT_SYMBOL_SIZE_IN_BYTES])
 {
-  const uint8_t clearBuff[PANEL_COUNT * 2] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  max7219SendSymbol(panelNumber, clearBuff);
+	if (!isMax7219Inited)
+		return;
+	for (Max7219Register reg = MAX7219_ROW_1_REG; reg <= MAX7219_ROW_8_REG; reg++) {
+		max7219FillCommandBuff(max7219Number, reg, symbol[reg - 1]);
+		max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+	}
 }
+
+static void max7219SendData(const uint8_t dataBuff[], uint16_t size)
+{
+	max7219PushData();
+	for (uint16_t i = 0; i < size; i++)
+		spiPushByte(dataBuff[i]);
+	max7219LatchData();
+}
+
+static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register reg, uint8_t arg)
+{
+	bool isCommandCommon = FALSE;
+	if (max7219Number == MAX7219_NUMBER_COUNT)
+		isCommandCommon = TRUE;
+
+	for (uint8_t i = MAX7219_NUMBER_0, idx = i; i < MAX7219_NUMBER_COUNT; i++) {
+		if (isCommandCommon) {
+			dataBuff[idx++] = reg;
+			dataBuff[idx++] = arg;
+		} else {
+			if (i == max7219Number) {
+				dataBuff[idx++] = reg;
+				dataBuff[idx++] = arg;
+			} else {
+				dataBuff[idx++] = MAX7219_NOOP_REG; // No Operation
+				dataBuff[idx++] = 0x00;
+			}
+		}
+	}
+}
+
 
 /*
 function transform array of columns into array of rows, that can be sent to max7219

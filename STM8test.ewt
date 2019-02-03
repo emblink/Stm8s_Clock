@@ -2173,13 +2173,10 @@
         <name>$PROJ_DIR$\src\DS1307.h</name>
     </file>
     <file>
+        <name>$PROJ_DIR$\src\font.c</name>
+    </file>
+    <file>
         <name>$PROJ_DIR$\src\font.h</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\src\ledPanel.c</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\src\ledPanel.h</name>
     </file>
     <file>
         <name>$PROJ_DIR$\src\main.c</name>

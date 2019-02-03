@@ -834,7 +834,7 @@
                     <item>rowData[5]</item>
                     <item>rowData[6]</item>
                     <item>rowData[7]</item>
-                    <item></item>
+                    <item />
                 </expressions>
                 <col-names>
                     <item>Expression</item>

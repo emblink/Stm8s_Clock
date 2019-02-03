@@ -1,4 +1,4 @@
-"E:\stm8s\StsPeriph_Lib\stm8s_it.c"
+"E:\stm8s\src\font.c"
 -std=c99
 -ferror-limit=0
 -I

@@ -8,7 +8,7 @@
 #include "stm8s_spi.h"
 #include "stm8s_i2c.h"
 #include "font.h"
-#include "ledPanel.h"
+#include "max7219.h"
 
 #define STM8S_I2C_ADDRESS 0x68
 
@@ -64,20 +64,21 @@ int main( void )
 	/* TODO: 21.4.2 I2C master mode - read 293 page of the datasheet
 	and add i2c functionality for DS1307 */
 
-	ledPanelInit();
-	const uint8_t number0[] = { 0x3E, 0x7F, 0x71, 0x59, 0x4D, 0x7F, 0x3E, 0x00 };
+	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
+	max7219Init(max7219Buff, sizeof(max7219Buff));
 
 	enableInterrupts();
 
 	while(1)
 	{
-		for (uint8_t i = PANEL_0; i < PANEL_COUNT; i++) {
-			GPIO_WriteReverse(GPIOD, GREEN_LED_PIN);
-			ledPanelSendSymbol(i, number0);
-			delayMs(1000);
-			ledPanleClearPanel(i);
-			delayMs(1000);
-		}
+		GPIO_WriteReverse(GPIOD, GREEN_LED_PIN);
+		max7219SendSymbol(MAX7219_NUMBER_0, fontGetNumberArray(1));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetNumberArray(2));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArray(3));
+		max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(4));
+		delayMs(1000);
+		max7219SendSymbol(MAX7219_NUMBER_COUNT, fontGetSpaceArray());
+		delayMs(1000);
 	}
 	return 0;
 }

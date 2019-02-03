@@ -25,7 +25,7 @@ if not "%~1" == "" goto debugFile
 
 @echo on 
 
-"F:\IAR\common\bin\cspybat" -f "D:\stm8s\settings\STM8test.Debug.general.xcl" --backend -f "D:\stm8s\settings\STM8test.Debug.driver.xcl" 
+"D:\IAR\common\bin\cspybat" -f "E:\stm8s\settings\STM8test.Debug.general.xcl" --backend -f "E:\stm8s\settings\STM8test.Debug.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"F:\IAR\common\bin\cspybat" -f "D:\stm8s\settings\STM8test.Debug.general.xcl" "--debug_file=%~1" --backend -f "D:\stm8s\settings\STM8test.Debug.driver.xcl" 
+"D:\IAR\common\bin\cspybat" -f "E:\stm8s\settings\STM8test.Debug.general.xcl" "--debug_file=%~1" --backend -f "E:\stm8s\settings\STM8test.Debug.driver.xcl" 
 
 @echo off 
 :end
