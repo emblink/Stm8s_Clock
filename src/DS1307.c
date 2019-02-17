@@ -1,12 +1,24 @@
- /*
 #include "stm8s.h"
-#include "stm8s_i2c.h"
+#include "i2c.h"
 #include "DS1307.h"
+
+enum ds1307_register {
+    DS1307_SECONDS_REGISTER = 0x00,
+    DS1307_MINUTES_REGISTER,
+    DS1307_HOURS_REGISTER,
+    DS1307_DAY_REGISTER,
+    DS1307_DATE_REGISTER,
+    DS1307_MONTH_REGISTER,
+    DS1307_YEAR_REGISTER,
+    DS1307_CONTROL_REGISTER,
+    DS1307_REGISTER_COUNT
+};
+
+static uint8_t ds1307ResetData[DS1307_REGISTER_COUNT] = {0};
 
 bool ds1307_reset(void)
 {
-    uint8_t null_arr[DS1307_REGISTER_COUNT] = {0};
-    return i2c_send(DS1307_ADDRESS, DS1307_SECONDS_REGISTER, &null_arr[0], sizeof(null_arr));
+    return i2c_send(DS1307_ADDRESS, DS1307_SECONDS_REGISTER, ds1307ResetData, sizeof(ds1307ResetData));
 }
 
 bool ds1307_halt(bool stoped)
@@ -23,7 +35,7 @@ bool ds1307_halt(bool stoped)
 bool ds1307_set_seconds(uint8_t seconds)
 {
     if (seconds > 58)
-        return false;
+        return FALSE;
     uint8_t units = seconds % 10;
     uint8_t tens = (seconds / 10) & 0x07;
     seconds = units | (tens << 4);
@@ -40,7 +52,7 @@ uint8_t ds1307_get_seconds(void)
 bool ds1307_set_minutes(uint8_t minutes)
 {
     if (minutes > 59) {
-        return false;
+        return FALSE;
     }
     uint8_t units = minutes % 10;
     uint8_t tens = (minutes / 10) & 0x07;
@@ -58,7 +70,7 @@ uint8_t ds1307_get_minutes(void)
 bool ds1307_set_hours(uint8_t hours)
 {
     if (hours > 23) {
-        return false;
+        return FALSE;
     }
     uint8_t units = hours % 10;
     uint8_t tens = (hours / 10) & 0x03;
@@ -76,7 +88,7 @@ uint8_t ds1307_get_hours(void)
 bool ds1307_set_day(uint8_t day)
 {
     if (day < 1 || day > 7) {
-        return false;
+        return FALSE;
     }
     day &= 0x07;
     return i2c_send(DS1307_ADDRESS, DS1307_DAY_REGISTER, &day, sizeof(day));
@@ -85,7 +97,7 @@ bool ds1307_set_day(uint8_t day)
 bool ds1307_set_date(uint8_t date)
 {
     if (date > 31) {
-        return false;
+        return FALSE;
     }
     uint8_t units = date % 10;
     uint8_t tens = (date / 10) & 0x30;
@@ -104,6 +116,3 @@ bool ds1307_set_date(uint8_t date)
 // {
 //     return i2c_send(DS1307_ADDRESS, DS1307_YEAR_REGISTER, &year, sizeof(year));
 // }
-
-
-*/

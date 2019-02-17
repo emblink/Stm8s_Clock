@@ -134,6 +134,7 @@ static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register 
 
 
 /*
+
 function transform array of columns into array of rows, that can be sent to max7219
 static void trans_panel(uint8_t *array, uint8_t *fill_array)
 {

@@ -212,7 +212,7 @@ uint8_t GPIO_ReadInputData(GPIO_TypeDef* GPIOx)
   */
 BitStatus GPIO_ReadInputPin(GPIO_TypeDef* GPIOx, GPIO_Pin_TypeDef GPIO_Pin)
 {
-  return ((BitStatus)(GPIOx->IDR & (uint8_t)GPIO_Pin));
+  return (BitStatus) ((GPIOx->IDR & (uint8_t)GPIO_Pin)) > RESET ? SET : RESET;
 }
 
 /**

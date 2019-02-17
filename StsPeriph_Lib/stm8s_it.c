@@ -28,22 +28,7 @@
   */ 
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm8s_it.h"
-#include "stm8s_gpio.h"
-#include "stm8s_tim1.h"
-#include "main.h"
-
-
-static volatile uint32_t timeTick = 0;
-
-uint32_t getCurrentTick()
-{ 
-  uint32_t tick = 0;
-  disableInterrupts();
-  tick = timeTick;  
-  enableInterrupts();
-  return tick;
-}
+#include "stm8s.h"
 
 /** @addtogroup Template_Project
   * @{
@@ -123,18 +108,6 @@ INTERRUPT_HANDLER(CLK_IRQHandler, 2)
 }
 
 /**
-  * @brief External Interrupt PORTA Interrupt routine.
-  * @param  None
-  * @retval None
-  */
-INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
-{
-  /* In order to detect unexpected events during development,
-     it is recommended to set a breakpoint on the following instruction.
-  */
-}
-
-/**
   * @brief External Interrupt PORTB Interrupt routine.
   * @param  None
   * @retval None
@@ -144,34 +117,6 @@ INTERRUPT_HANDLER(EXTI_PORTB_IRQHandler, 4)
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
-}
-
-/**
-  * @brief External Interrupt PORTC Interrupt routine.
-  * @param  None
-  * @retval None
-  */
-    #define DEBOUNCE_TIME (10)
-    static uint32_t lastTick = 0;
-
-static uint32_t count = 0;
-static void func(void)
-{
-    count++;
-}
-
-INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
-{
-  /* In order to detect unexpected events during development,
-     it is recommended to set a breakpoint on the following instruction.
-  */
-  if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN)) {
-    if (getCurrentTick() - lastTick > DEBOUNCE_TIME) {
-      GPIO_WriteReverse(GPIOC, RED_LED_PIN);
-      func();
-    }
-  }
-  lastTick = getCurrentTick();
 }
 
 /**
@@ -248,20 +193,6 @@ INTERRUPT_HANDLER(SPI_IRQHandler, 10)
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
-}
-
-/**
-  * @brief Timer1 Update/Overflow/Trigger/Break Interrupt routine.
-  * @param  None
-  * @retval None
-  */
-INTERRUPT_HANDLER(TIM1_UPD_OVF_TRG_BRK_IRQHandler, 11)
-{
-  /* In order to detect unexpected events during development,
-     it is recommended to set a breakpoint on the following instruction.
-  */
-  timeTick++;
-  TIM1_ClearITPendingBit(TIM1_IT_UPDATE); //  | TIM1_IT_TRIGGER | TIM1_IT_BREAK
 }
 
 /**
@@ -406,19 +337,6 @@ INTERRUPT_HANDLER(TIM1_CAP_COM_IRQHandler, 12)
     */
  }
 #endif /* (STM8AF622x) */
-
-/**
-  * @brief I2C Interrupt routine.
-  * @param  None
-  * @retval None
-  */
-INTERRUPT_HANDLER(I2C_IRQHandler, 19)
-{
-  
-  /* In order to detect unexpected events during development,
-     it is recommended to set a breakpoint on the following instruction.
-  */
-}
 
 #if defined(STM8S105) || defined(STM8S005) ||  defined (STM8AF626x)
 /**

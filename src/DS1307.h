@@ -2,25 +2,13 @@
 #define __DS_1307_H
 
 #include "stm8s.h"
-#include "stm8s_i2c.h"
-#define DS1307_ADDRESS (0x68)
 
-enum ds1307_register {
-    DS1307_SECONDS_REGISTER = 0x00,
-    DS1307_MINUTES_REGISTER,
-    DS1307_HOURS_REGISTER,
-    DS1307_DAY_REGISTER,
-    DS1307_DATE_REGISTER,
-    DS1307_MONTH_REGISTER,
-    DS1307_YEAR_REGISTER,
-    DS1307_CONTROL_REGISTER,
-    DS1307_REGISTER_COUNT
-};
+#define DS1307_ADDRESS (0x68)
 
 bool ds1307_reset(void);
 bool ds1307_halt(bool stoped);
 bool ds1307_set_seconds(uint8_t sec);
-uint8_t ds1307_get_seconds();
+uint8_t ds1307_get_seconds(void);
 bool ds1307_set_minutes(uint8_t min);
 uint8_t ds1307_get_minutes(void);
 bool ds1307_set_hours(uint8_t hour);
