@@ -5,30 +5,6 @@
 #define NULL 0
 #define STM8S_I2C_ADDRESS 0xFF
 
-typedef enum {
-  /* SR1 register flags */
-  I2C_SR1_BIT_TXEMPTY             = 7,  /*!< Transmit Data Register Empty flag */
-  I2C_SR1_BIT_RXNOTEMPTY          = 6,  /*!< Read Data Register Not Empty flag */
-  I2C_SR1_BIT_STOPDETECTION       = 4,  /*!< Stop detected flag */
-  I2C_SR1_BIT_HEADERSENT          = 3,  /*!< 10-bit Header sent flag */
-  I2C_SR1_BIT_TRANSFERFINISHED    = 2,  /*!< Data Byte Transfer Finished flag */
-  I2C_SR1_BIT_ADDRESSSENTMATCHED  = 1,  /*!< Address Sent/Matched (master/slave) flag */
-  I2C_SR1_BIT_STARTDETECTION      = 0,  /*!< Start bit sent flag */
-
-  /* SR2 register flags */
-  I2C_SR2_BIT_WAKEUPFROMHALT      = 5,  /*!< Wake Up From Halt Flag */
-  I2C_SR2_BIT_OVERRUNUNDERRUN     = 3,  /*!< Overrun/Underrun flag */
-  I2C_SR2_BIT_ACKNOWLEDGEFAILURE  = 2,  /*!< Acknowledge Failure Flag */
-  I2C_SR2_BIT_ARBITRATIONLOSS     = 1,  /*!< Arbitration Loss Flag */
-  I2C_SR2_BIT_BUSERROR            = 0,  /*!< Misplaced Start or Stop condition */
-
-  /* SR3 register flags */
-  I2C_SR3_BIT_GENERALCALL         = 4,  /*!< General Call header received Flag */
-  I2C_SR3_BIT_TRANSMITTERRECEIVER = 2,  /*!< Transmitter Receiver Flag */
-  I2C_SR3_BIT_BUSBUSY             = 1,  /*!< Bus Busy Flag */
-  I2C_SR3_BIT_MASTERSLAVE         = 0   /*!< Master Slave Flag */
-} I2cRegisterBits;
-
 void i2cInit(void)
 {
   	I2C_DeInit();
@@ -54,7 +30,7 @@ static bool busyBus = FALSE;
 
 bool i2c_send(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t txBuff[], uint16_t txSize)
 {
-	if(busyBus || !txBuff || !txSize)
+	if(I2C->SR3 & I2C_SR3_BUSY || !txBuff || !txSize)
 		return FALSE;
 	busyBus = TRUE;
 	busAddress = deviceAddress << 1;
@@ -62,21 +38,21 @@ bool i2c_send(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t txBuff[], u
 	buffPtr = txBuff;
 	dataLength = txSize;
 	buffIdx = 0;
-	I2C_GenerateSTART(ENABLE);
+	I2C->CR2 |= I2C_CR2_START;
 	return TRUE;
 }
 
 bool i2c_read(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t rxBuff[], uint16_t rxSize)
 {
-	if(I2C->SR3 & I2C_SR3_BIT_BUSBUSY|| !rxBuff || !rxSize) // I2C_SR3_BUSY
+	if(I2C->SR3 & I2C_SR3_BUSY || !rxBuff || !rxSize)
 		return FALSE;
 	busyBus = TRUE;
-	busAddress = deviceAddress << 1 | 0x01;
+	busAddress = (deviceAddress << 1) | 0x01;
 	memoryAdress = deviceRegister;
 	buffPtr = rxBuff;
 	dataLength = rxSize;
 	buffIdx = 0;
-	I2C_GenerateSTART(ENABLE);
+	I2C->CR2 |= I2C_CR2_START;
 	return TRUE;
 }
 
@@ -124,34 +100,81 @@ bool i2c_send(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t txBuff[], u
 	if(!txBuff || !txSize)
 		return FALSE;
 	
-	while(I2C->SR3 & (1 << I2C_SR3_BIT_BUSBUSY)); //wait for previous transaction finish
+	while(I2C->SR3 & I2C_SR3_BUSY); //wait for previous transaction finish
 	
 	I2C->CR2 |= I2C_CR2_START;  // generate start
-	while (!(I2C->SR1 & (1 << I2C_SR1_BIT_STARTDETECTION)));
+	while (!(I2C->SR1 & I2C_SR1_SB));
 	I2C->SR1; // clear SB bit
 	I2C->DR = deviceAddress << 1;
-	while (!(I2C->SR1 & (1 << I2C_SR1_BIT_ADDRESSSENTMATCHED)));
+	while (!(I2C->SR1 & I2C_SR1_ADDR));
 	I2C->SR1; // clear ADDR bit
 	I2C->SR3;
-	while (!(I2C->SR1 & (1 << I2C_SR1_BIT_TXEMPTY)));
+	while (!(I2C->SR1 & I2C_SR1_TXE));
 	I2C->DR = deviceRegister;
 	uint16_t i = 0;
 	while (i < txSize) {
-		while(!(I2C->SR1 & (1 << I2C_SR1_BIT_TXEMPTY))); // TXE=1, shift register empty, data register empty, write DR register.
+		while(!(I2C->SR1 & I2C_SR1_TXE));
 		I2C->DR = txBuff[i++];
 	}
-	while(!(I2C->SR1 & (1 << I2C_SR1_BIT_TXEMPTY)) && !(I2C->SR1 & (1 << I2C_SR1_BIT_TRANSFERFINISHED)));
+	while(!(I2C->SR1 & I2C_SR1_TXE) && !(I2C->SR1 & I2C_SR1_BTF));
 	I2C->CR2 |= I2C_CR2_STOP;
 	return TRUE;
 }
 
-bool i2c_read(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t rxBuff[], uint16_t rxSize)
+#define I2C_DR_DR        ((uint8_t)0xFF)  /*!< Data Register */
+
+#define I2C_SR1_TXE      ((uint8_t)0x80)  /*!< Data Register Empty (transmitters) */
+#define I2C_SR1_RXNE     ((uint8_t)0x40)  /*!< Data Register not Empty (receivers) */
+#define I2C_SR1_STOPF    ((uint8_t)0x10)  /*!< Stop detection (Slave mode) */
+#define I2C_SR1_ADD10    ((uint8_t)0x08)  /*!< 10-bit header sent (Master mode) */
+#define I2C_SR1_BTF      ((uint8_t)0x04)  /*!< Byte Transfer Finished */
+#define I2C_SR1_ADDR     ((uint8_t)0x02)  /*!< Address sent (master mode)/matched (slave mode) */
+#define I2C_SR1_SB       ((uint8_t)0x01)  /*!< Start Bit (Master mode) */
+
+#define I2C_SR2_WUFH     ((uint8_t)0x20)  /*!< Wake-up from Halt */
+#define I2C_SR2_OVR      ((uint8_t)0x08)  /*!< Overrun/Underrun */
+#define I2C_SR2_AF       ((uint8_t)0x04)  /*!< Acknowledge Failure */
+#define I2C_SR2_ARLO     ((uint8_t)0x02)  /*!< Arbitration Lost (master mode) */
+#define I2C_SR2_BERR     ((uint8_t)0x01)  /*!< Bus Error */
+
+#define I2C_SR3_GENCALL  ((uint8_t)0x10)  /*!< General Call Header (Slave mode) */
+#define I2C_SR3_TRA      ((uint8_t)0x04)  /*!< Transmitter/Receiver */
+#define I2C_SR3_BUSY     ((uint8_t)0x02)  /*!< Bus Busy */
+#define I2C_SR3_MSL      ((uint8_t)0x01)  /*!< Master/Slave */
+
+#define I2C_CR2_SWRST ((uint8_t)0x80)     /*!< Software Reset */
+#define I2C_CR2_POS   ((uint8_t)0x08)     /*!< Acknowledge */
+#define I2C_CR2_ACK   ((uint8_t)0x04)     /*!< Acknowledge Enable */
+#define I2C_CR2_STOP  ((uint8_t)0x02)     /*!< Stop Generation */
+#define I2C_CR2_START ((uint8_t)0x01)     /*!< Start Generation */
+
+bool i2c_read(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t rxBuff[], uint16_t rxSize) // rads only 1 byte
 {
 	if(!rxBuff || !rxSize)
 		return FALSE;
 	
-	while(I2C->SR3 & (1 << I2C_SR3_BIT_BUSBUSY)); //wait for previous transaction finish
+	while(I2C->SR3 & I2C_SR3_BUSY); //wait for previous transaction finish
 	
+	I2C->CR2 |= I2C_CR2_START;  // generate start
+	while (!(I2C->SR1 & I2C_SR1_SB));
+	I2C->SR1; // clear SB bit
+	I2C->DR = deviceAddress << 1;
+	while (!(I2C->SR1 & I2C_SR1_ADDR));
+	I2C->SR1; // clear ADDR bit
+	I2C->SR3;
+	while (!(I2C->SR1 & I2C_SR1_TXE));
+	I2C->DR = deviceRegister;
+	while (!(I2C->SR1 & I2C_SR1_TXE));
+	I2C->CR2 |= I2C_CR2_START;
+	while (!(I2C->SR1 & I2C_SR1_SB));
+	I2C->DR = (deviceAddress << 1) | 0x01;
+	while (!(I2C->SR1 & I2C_SR1_ADDR));
+	I2C->CR2 &= ~I2C_CR2_ACK; // disable ACK
+	I2C->SR1; // clear ADDR bit
+	I2C->SR3;
+	I2C->CR2 |= I2C_CR2_STOP;
+	while(!(I2C->SR1 & I2C_SR1_RXNE));
+	rxBuff[0] = I2C->DR;
 	return TRUE;
 }
 #endif // I2C_POLLING_METHOD

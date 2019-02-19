@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <settings>
     <DebugChecksum>
-        <Checksum>3890101214</Checksum>
+        <Checksum>167699688</Checksum>
     </DebugChecksum>
     <Stack>
         <FillEnabled>0</FillEnabled>
@@ -64,14 +64,20 @@
         <Fmt3>{W}1:deviceAddress	4	0</Fmt3>
         <Fmt4>{W}1:encoderChannelAState	3	0</Fmt4>
         <Fmt5>{W}1:encoderChannelBState	3	0</Fmt5>
-        <Fmt6>{W}1:memoryAdress	4	0</Fmt6>
-        <Fmt7>{W}42:counter	3	0</Fmt7>
+        <Fmt6>{W}1:hours	3	0</Fmt6>
+        <Fmt7>{W}1:memoryAdress	4	0</Fmt7>
+        <Fmt8>{W}1:minutes	3	0</Fmt8>
+        <Fmt9>{W}1:seconds	3	0</Fmt9>
+        <Fmt10>{W}42:counter	3	0</Fmt10>
     </watch_formats>
     <DataSample>
         <LogEnabled>0</LogEnabled>
         <GraphEnabled>0</GraphEnabled>
         <ShowTimeLog>1</ShowTimeLog>
     </DataSample>
+    <Breakpoints>
+        <Count>0</Count>
+    </Breakpoints>
     <LogFile>
         <LoggingEnabled>_ 0</LoggingEnabled>
         <LogFile>_ ""</LogFile>
@@ -81,9 +87,6 @@
         <LoggingEnabled>_ 0</LoggingEnabled>
         <LogFile>_ ""</LogFile>
     </TermIOLog>
-    <Breakpoints>
-        <Count>0</Count>
-    </Breakpoints>
     <Aliases>
         <Count>0</Count>
         <SuppressDialog>0</SuppressDialog>

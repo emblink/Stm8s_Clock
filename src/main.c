@@ -12,13 +12,26 @@
 #include "i2c.h"
 
 //#define DEBUG
-#define PANEL_UPDATE_PERIOD_MS 40
+#define UPDATE_PERIOD_MS 100
+
+typedef enum ClockMode {
+	ClockModeHoursMinutes,
+	ClockModeMinutesSeconds,
+	ClockModeSetTime,
+} ClockMode;
 
 static uint16_t getCurrentTick(void);
+static void updateTime(void);
 static void delayMs(uint16_t delay);
 
+static volatile ClockMode clockMode = ClockModeHoursMinutes;
 static volatile uint16_t timeTick = 0;
 static uint8_t encoderCounter = 0;
+static uint8_t hours = 0;
+static uint8_t minutes = 0;
+static uint8_t seconds = 0;
+
+	
 
 int main( void )
 {
@@ -72,27 +85,68 @@ int main( void )
 	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
 	max7219Init(max7219Buff, sizeof(max7219Buff));
 	
-	uint16_t lastTick = 0;
 	enableInterrupts();
 	
 	/* Start application timer */
 	TIM1_Cmd(ENABLE);
 	
+	/*
 	ds1307_reset();
 	ds1307_set_hours(1);
-	ds1307_set_minutes(15);
-	ds1307_set_seconds(40);
+	ds1307_set_minutes(20);
+	ds1307_set_seconds(00);
+	*/
+	bool panelProcess = FALSE;
 	
 	while(1)
 	{
-		if (getCurrentTick() - lastTick > PANEL_UPDATE_PERIOD_MS) {
-			GPIO_WriteReverse(GPIOD, GREEN_LED_PIN);
-			max7219SendSymbol(MAX7219_NUMBER_COUNT, fontGetSpaceArray());
-			max7219SendSymbol(MAX7219_NUMBER_0, fontGetNumberArray(encoderCounter % 10));
-			lastTick = getCurrentTick();
+		if (!(timeTick % UPDATE_PERIOD_MS)) {
+			if (seconds != ds1307_get_seconds())
+				panelProcess = TRUE;
+			updateTime();
 		}
-		//wfi();
+		
+		if (panelProcess) {
+			static bool blink = FALSE;
+			GPIO_WriteReverse(GPIOD, GREEN_LED_PIN);
+			uint8_t panelNumber0_1 = 0;
+			uint8_t panelNumber2_3 = 0;
+			switch (clockMode) {
+			case ClockModeHoursMinutes:
+				panelNumber0_1 = hours;
+				panelNumber2_3 = minutes;
+				break;
+			case ClockModeMinutesSeconds:
+				panelNumber0_1 = minutes;
+				panelNumber2_3 = seconds;		  		  
+				break;
+			case ClockModeSetTime:
+				break;
+			default:
+				break;
+			}
+			max7219SendSymbol(MAX7219_NUMBER_0, fontGetNumberArray(panelNumber0_1 / 10));
+			if (blink) {
+				max7219SendSymbol(MAX7219_NUMBER_1, fontAddDots(fontGetNumberArray(panelNumber0_1 % 10), FONT_SYMBOL_RIGHT_SHIFT));
+				max7219SendSymbol(MAX7219_NUMBER_2, fontAddDots(fontGetNumberArrayShifted(panelNumber2_3 / 10, FONT_SYMBOL_RIGHT_SHIFT, 2), FONT_SYMBOL_LEFT_SHIFT));
+			} else {
+				max7219SendSymbol(MAX7219_NUMBER_1, fontGetNumberArray(panelNumber0_1 % 10));
+				max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArrayShifted(panelNumber2_3 / 10, FONT_SYMBOL_RIGHT_SHIFT, 2));
+			}
+			max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArrayShifted(panelNumber2_3 % 10, FONT_SYMBOL_RIGHT_SHIFT, 2));
+			panelProcess = FALSE;
+			blink = !blink;
+		}
+		
+		wfi(); // fall in sleep
 	}
+}
+
+static void updateTime(void)
+{
+	hours = ds1307_get_hours();
+	minutes = ds1307_get_minutes();
+	seconds = ds1307_get_seconds();
 }
 
 static uint16_t getCurrentTick(void)
@@ -151,12 +205,22 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
   * @retval None
   */
 #define DEBOUNCE_TIME 10
-static uint32_t lastTick = 0;
+static uint16_t lastTick = 0;
 
 static uint8_t count = 0;
 static void func(void)
 {
 	count++;
+	switch (clockMode) {
+	case ClockModeHoursMinutes:
+		clockMode = ClockModeMinutesSeconds;
+		break;
+	case ClockModeMinutesSeconds:
+		clockMode = ClockModeHoursMinutes;
+		break;
+	default:
+		break;
+	}
 }
 
 INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)

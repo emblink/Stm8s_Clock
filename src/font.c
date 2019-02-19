@@ -18,10 +18,54 @@ static const uint8_t fontArray[][8] = {
 	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // space
 };
 
+static uint8_t symbol[FONT_SYMBOL_SIZE_IN_BYTES] = {0};
+
 const uint8_t * fontGetNumberArray(uint8_t number)
 {
 	number &= 0x0F;
 	return &fontArray[number][0];
+}
+
+uint8_t * fontGetNumberArrayShifted(uint8_t number, FontSymbolShift shiftDirection, uint8_t shift)
+{
+	number &= 0x0F;
+	for (uint8_t i = 0; i < FONT_SYMBOL_SIZE_IN_BYTES; i++) {
+		switch (shiftDirection) {
+		case FONT_SYMBOL_LEFT_SHIFT:
+			symbol[i] = fontArray[number][i] << shift;
+			break;
+		case FONT_SYMBOL_RIGHT_SHIFT:
+			symbol[i] = fontArray[number][i] >> shift;
+			break;
+		default:
+			break;
+		}
+	}
+	return symbol;
+}
+
+	
+uint8_t * fontAddDots(const uint8_t fontSymbol[FONT_SYMBOL_SIZE_IN_BYTES], FontSymbolShift dotsSide)
+{
+	uint8_t orValue = 0x00;
+	switch (dotsSide) {
+	case FONT_SYMBOL_LEFT_SHIFT:
+		orValue = 0x80;
+		break;
+	case FONT_SYMBOL_RIGHT_SHIFT:
+		orValue = 0x01;
+		break;
+	default:
+		break;
+	}
+	
+	for (uint8_t i = 0; i < FONT_SYMBOL_SIZE_IN_BYTES; i++) {
+		if (i == 1 || i == 2 || i == 5 || i == 6)
+			symbol[i] = (fontSymbol[i] | orValue);
+		else
+			symbol[i] = fontSymbol[i];
+	}
+	return symbol;
 }
 
 const uint8_t * fontGetSpaceArray(void)
