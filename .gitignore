@@ -1,3 +1,10 @@
+# Folders
+StdPeriph_lib/
+settings/
+Release/
+Debug/
+
+# Files
 *.txt
 *.md
 *.png
@@ -8,11 +15,6 @@
 *.dep
 *.ioc8
 *.log
-
-StdPeriph_lib/
-settings/
-Release/
-Debug/
 
 # IAR Settings  
 **/settings/*.crun  
