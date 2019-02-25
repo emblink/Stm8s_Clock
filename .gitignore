@@ -1,0 +1,9 @@
+*.txt
+*.md
+*.png
+*.pdf
+*.jpg
+StdPeriph_lib/
+settings/
+Release/
+Debug/

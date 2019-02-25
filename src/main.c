@@ -3,6 +3,7 @@
 #include "stm8s_gpio.h"
 #include "stm8s_exti.h"
 #include "stm8s_tim1.h"
+#include "stm8s_tim2.h"
 #include "stm8s_clk.h"
 #include "stm8s_spi.h"
 #include "stm8s_i2c.h"
@@ -11,27 +12,65 @@
 #include "DS1307.h"
 #include "i2c.h"
 
-//#define DEBUG
-#define UPDATE_PERIOD_MS 100
+#define DEBUG
+#define SETTINGS_MODE_DISCARD_HOLD_PERIOD_MS 500
+#define SETTINGS_MODE_ENTER_APPLY_HOLD_PERIOD_MS 2000
+#define SETTINGS_MODE_RESET_TO_DEFAULTS_MS 5000
 
 typedef enum ClockMode {
-	ClockModeHoursMinutes,
-	ClockModeMinutesSeconds,
-	ClockModeSetTime,
+	CLOCK_MODE_HOURS_MINUTES = 0,
+	CLOCK_MODE_MINUTES_SECONDS = 1,
+	CLOCK_MODE_SETTINGS,
+	CLOCK_MODE_COUNT,
 } ClockMode;
 
+typedef enum SettingsParam {
+	SETTINGS_PARAM_DISCARD,
+	SETTINGS_PARAM_RESET_TO_DEFAULTS,
+	SETTINGS_PARAM_APPLY,
+	SETTINGS_PARAM_TOGGLE_BRIGHTNESS,
+	SETTINGS_PARAM_COUNT,
+} SettingsParam;
+
+typedef enum SettingsChangeValue{
+	SETTINGS_CHANGE_HOURS = 0,
+	SETTINGS_CHANGE_MINUTES = 1,
+	SETTINGS_CHANGE_SECONDS = 2,
+	SETTINGS_CHANGE_VALUE_COUNT,	
+} SettingsChangeValue;
+
+typedef union RealTimeClock {
+	struct {
+		uint8_t hours;
+		uint8_t minutes;
+		uint8_t seconds;
+	} time;
+	uint8_t data[sizeof(time)];
+} RealTimeClock;
+
+static const uint16_t clockModeUpdatePeriod[CLOCK_MODE_COUNT] = {
+	[CLOCK_MODE_HOURS_MINUTES] = 1000,
+	[CLOCK_MODE_MINUTES_SECONDS] = 1000,
+	[CLOCK_MODE_SETTINGS] = 100,
+};
+
+static void processClockMode(void);
+static void processSettingsMode(void);
+static void highlightSettingsValue(void);
 static uint16_t getCurrentTick(void);
 static void updateTime(void);
 static void delayMs(uint16_t delay);
+static void swichClockMode(void);
 
-static volatile ClockMode clockMode = ClockModeHoursMinutes;
+static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
+static volatile bool panelProcess = TRUE;
+static volatile bool brightnessProcess = FALSE;
+static uint8_t settingsChangeValue = SETTINGS_CHANGE_VALUE_COUNT;
+static SettingsParam settingsParam = SETTINGS_PARAM_COUNT;
 static volatile uint16_t timeTick = 0;
-static uint8_t encoderCounter = 0;
-static uint8_t hours = 0;
-static uint8_t minutes = 0;
-static uint8_t seconds = 0;
+static RealTimeClock rtc = {0};
 
-	
+
 
 int main( void )
 {
@@ -55,7 +94,7 @@ int main( void )
 	/* Init Encoder */
 	GPIO_Init(GPIOC, BUTTON_PIN, GPIO_MODE_IN_PU_IT); // C4
 	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_RISE_FALL);
-	GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_IT); // A1
+	GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // A1
 	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOA, EXTI_SENSITIVITY_RISE_FALL);
 	GPIO_Init(GPIOA, ENCODER_CHANNEL_B_PIN, GPIO_MODE_IN_FL_NO_IT); // A2
 	
@@ -76,10 +115,17 @@ int main( void )
 	
 	/* Timer 1 Init */
 	TIM1_DeInit();
-	TIM1_PrescalerConfig(15, TIM1_PSCRELOADMODE_UPDATE); // 1599 + 1 = 1600
-	TIM1_SetAutoreload(1000); // frequency = 16M / 16 / 1000 = 1000 Hz
+	TIM1_PrescalerConfig(15, TIM1_PSCRELOADMODE_IMMEDIATE); // 15 + 1
+	TIM1_SetAutoreload(1000); // frequency = 16 000 000 / 16 / 1000 = 1000 Hz
 	TIM1_ITConfig(TIM1_IT_UPDATE, ENABLE);
 	TIM1_CounterModeConfig(TIM1_COUNTERMODE_UP);
+	
+	TIM2_DeInit();
+	TIM2_UpdateRequestConfig(TIM2_UPDATESOURCE_REGULAR);
+	TIM2_PrescalerConfig(TIM2_PRESCALER_1024, TIM2_PSCRELOADMODE_IMMEDIATE); // frequency = 16M / 1024 / 31250 = 0.5 Hz
+	TIM2_SetAutoreload(31250);
+	TIM2_SelectOnePulseMode(TIM2_OPMODE_SINGLE);
+	TIM2_ITConfig(TIM2_IT_UPDATE, ENABLE);
 
 	/* Max7219 Init */
 	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
@@ -90,63 +136,149 @@ int main( void )
 	/* Start application timer */
 	TIM1_Cmd(ENABLE);
 	
-	/*
-	ds1307_reset();
-	ds1307_set_hours(1);
-	ds1307_set_minutes(20);
-	ds1307_set_seconds(00);
-	*/
-	bool panelProcess = FALSE;
-	
 	while(1)
 	{
-		if (!(timeTick % UPDATE_PERIOD_MS)) {
-			if (seconds != ds1307_get_seconds())
-				panelProcess = TRUE;
-			updateTime();
-		}
-		
-		if (panelProcess) {
-			static bool blink = FALSE;
-			GPIO_WriteReverse(GPIOD, GREEN_LED_PIN);
-			uint8_t panelNumber0_1 = 0;
-			uint8_t panelNumber2_3 = 0;
+		if (!(timeTick % clockModeUpdatePeriod[clockMode]) || panelProcess) {
 			switch (clockMode) {
-			case ClockModeHoursMinutes:
-				panelNumber0_1 = hours;
-				panelNumber2_3 = minutes;
+			case CLOCK_MODE_HOURS_MINUTES:
+			case CLOCK_MODE_MINUTES_SECONDS:
+				updateTime();
+				processClockMode();
 				break;
-			case ClockModeMinutesSeconds:
-				panelNumber0_1 = minutes;
-				panelNumber2_3 = seconds;		  		  
-				break;
-			case ClockModeSetTime:
+			case CLOCK_MODE_SETTINGS:
+				processSettingsMode();
 				break;
 			default:
 				break;
 			}
-			max7219SendSymbol(MAX7219_NUMBER_0, fontGetNumberArray(panelNumber0_1 / 10));
-			if (blink) {
-				max7219SendSymbol(MAX7219_NUMBER_1, fontAddDots(fontGetNumberArray(panelNumber0_1 % 10), FONT_SYMBOL_RIGHT_SHIFT));
-				max7219SendSymbol(MAX7219_NUMBER_2, fontAddDots(fontGetNumberArrayShifted(panelNumber2_3 / 10, FONT_SYMBOL_RIGHT_SHIFT, 2), FONT_SYMBOL_LEFT_SHIFT));
-			} else {
-				max7219SendSymbol(MAX7219_NUMBER_1, fontGetNumberArray(panelNumber0_1 % 10));
-				max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArrayShifted(panelNumber2_3 / 10, FONT_SYMBOL_RIGHT_SHIFT, 2));
-			}
-			max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArrayShifted(panelNumber2_3 % 10, FONT_SYMBOL_RIGHT_SHIFT, 2));
-			panelProcess = FALSE;
-			blink = !blink;
 		}
-		
-		wfi(); // fall in sleep
+		wfi();
 	}
+}
+
+static void processClockMode(void)
+{
+	static bool blink = FALSE;
+	max7219SendSymbol(MAX7219_NUMBER_0, fontGetNumberArray(rtc.data[clockMode] / 10));
+	if (blink) {
+		max7219SendSymbol(MAX7219_NUMBER_1, fontAddDots(fontGetNumberArray(rtc.data[clockMode] % 10), FONT_SYMBOL_RIGHT_SHIFT));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontAddDots(fontGetNumberArrayShifted(rtc.data[clockMode + 1] / 10, FONT_SYMBOL_RIGHT_SHIFT, 2), FONT_SYMBOL_LEFT_SHIFT));
+	} else {
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetNumberArray(rtc.data[clockMode] % 10));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArrayShifted(rtc.data[clockMode + 1] / 10, FONT_SYMBOL_RIGHT_SHIFT, 2));
+	}
+	max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArrayShifted(rtc.data[clockMode + 1] % 10, FONT_SYMBOL_RIGHT_SHIFT, 2));
+	blink ^= TRUE;
+	panelProcess = FALSE;
+}
+
+static void processSettingsMode(void) {
+	
+	static bool settingsInited = FALSE;
+	
+	if (!settingsInited) {
+		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_IT); // A1 // enable encoder Interrupts
+		settingsChangeValue = SETTINGS_CHANGE_HOURS;
+		max7219SendSymbol(MAX7219_NUMBER_COUNT, fontGetSpaceArray());
+		settingsInited = TRUE;
+	}
+	
+	switch(settingsChangeValue) {
+	case SETTINGS_CHANGE_HOURS:
+		max7219SendSymbol(MAX7219_NUMBER_0, fontGetNumberArray(rtc.data[SETTINGS_CHANGE_HOURS] / 10));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetNumberArray(rtc.data[SETTINGS_CHANGE_HOURS] % 10));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArray(rtc.data[SETTINGS_CHANGE_MINUTES] / 10));
+		max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(rtc.data[SETTINGS_CHANGE_MINUTES] % 10));
+		break;
+	case SETTINGS_CHANGE_MINUTES:
+	case SETTINGS_CHANGE_SECONDS:
+		max7219SendSymbol(MAX7219_NUMBER_0, fontGetNumberArray(rtc.data[SETTINGS_CHANGE_MINUTES] / 10));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetNumberArray(rtc.data[SETTINGS_CHANGE_MINUTES] % 10));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArray(rtc.data[SETTINGS_CHANGE_SECONDS] / 10));
+		max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(rtc.data[SETTINGS_CHANGE_SECONDS] % 10));
+		break;
+	default:
+		settingsInited = FALSE;
+		settingsParam = SETTINGS_PARAM_COUNT;
+		break;
+	}
+	highlightSettingsValue();
+	
+	switch (settingsParam) {
+	case SETTINGS_PARAM_DISCARD:
+		updateTime();
+		settingsInited = FALSE;
+		break;
+	case SETTINGS_PARAM_RESET_TO_DEFAULTS:
+		ds1307_reset();
+		settingsInited = FALSE;
+		break;
+	case SETTINGS_PARAM_APPLY:
+		ds1307_set_hours(rtc.time.hours);
+		ds1307_set_minutes(rtc.time.minutes);
+		ds1307_set_seconds(rtc.time.seconds);
+		settingsInited = FALSE;
+		break;
+	default:
+		break;
+	}
+	
+	if (!settingsInited) {
+		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // disable encoder Interrupts
+		settingsChangeValue = SETTINGS_CHANGE_HOURS;
+		clockMode = CLOCK_MODE_HOURS_MINUTES;
+		panelProcess = TRUE;
+		return;
+	}
+	panelProcess = FALSE;
+}
+
+static void swichClockMode(void)
+{
+	switch (clockMode) {
+	case CLOCK_MODE_HOURS_MINUTES:
+		clockMode = CLOCK_MODE_MINUTES_SECONDS;
+		break;
+	case CLOCK_MODE_MINUTES_SECONDS:
+		clockMode = CLOCK_MODE_HOURS_MINUTES;
+		break;
+	case CLOCK_MODE_SETTINGS:
+		settingsChangeValue++;
+		settingsChangeValue %= SETTINGS_CHANGE_VALUE_COUNT;
+		break;
+	default:
+		break;
+	}
+	panelProcess = TRUE;
+}
+
+static void highlightSettingsValue(void)
+{
+	static uint8_t brightness = 0;
+	static int8_t increment = 1;
+	brightness += increment;
+	switch(settingsChangeValue) {
+	case SETTINGS_CHANGE_HOURS:
+		max7219SendCommand(MAX7219_NUMBER_0, MAX7219_SET_INTENSITY_LEVEL, (Max7219CommandArgument) brightness);
+		max7219SendCommand(MAX7219_NUMBER_1, MAX7219_SET_INTENSITY_LEVEL, (Max7219CommandArgument) brightness);
+		break;
+	case SETTINGS_CHANGE_MINUTES:
+	case SETTINGS_CHANGE_SECONDS:
+		max7219SendCommand(MAX7219_NUMBER_2, MAX7219_SET_INTENSITY_LEVEL, (Max7219CommandArgument) brightness);
+		max7219SendCommand(MAX7219_NUMBER_3, MAX7219_SET_INTENSITY_LEVEL, (Max7219CommandArgument) brightness);
+		break;
+	default:
+		return;
+	}
+	if (brightness == MAX7219_INTENSITY_LEVEL_0 || brightness == MAX7219_INTENSITY_LEVEL_10)
+		increment = -increment;
 }
 
 static void updateTime(void)
 {
-	hours = ds1307_get_hours();
-	minutes = ds1307_get_minutes();
-	seconds = ds1307_get_seconds();
+	rtc.time.hours = ds1307_get_hours();
+	rtc.time.minutes = ds1307_get_minutes();
+	rtc.time.seconds = ds1307_get_seconds();
 }
 
 static uint16_t getCurrentTick(void)
@@ -189,9 +321,9 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 		channelBState = encoderChannelBState;
 #endif // DEBUG
 		if (encoderChannelAState != encoderChannelBState)
-			encoderCounter++;
+			rtc.data[settingsChangeValue]++;
 		else
-			encoderCounter--;
+			rtc.data[settingsChangeValue]++;
 		encoderChannelAPrevState = encoderChannelAState;
 	}
 	encoderLastTick = currentTick;
@@ -207,32 +339,32 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 #define DEBOUNCE_TIME 10
 static uint16_t lastTick = 0;
 
-static uint8_t count = 0;
-static void func(void)
-{
-	count++;
-	switch (clockMode) {
-	case ClockModeHoursMinutes:
-		clockMode = ClockModeMinutesSeconds;
-		break;
-	case ClockModeMinutesSeconds:
-		clockMode = ClockModeHoursMinutes;
-		break;
-	default:
-		break;
-	}
-}
+#ifdef DEBUG
+static volatile uint8_t interruptEnterCount = 0;
+static volatile uint8_t pressed = 0;
+static volatile uint8_t released = 0;
+#endif // DEBUG
 
 INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 {
- 	static bool buttonState = TRUE;
+	#ifdef DEBUG
+	interruptEnterCount++;
+	#endif // DEBUG
+	static bool buttonState = TRUE;
 	if (getCurrentTick() - lastTick > DEBOUNCE_TIME) {
 		if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN) && buttonState) {
 			buttonState = FALSE;
-			GPIO_WriteReverse(GPIOC, RED_LED_PIN);
-			func();
+			#ifdef DEBUG
+			pressed++;
+			#endif // DEBUG
+			TIM2_Cmd(ENABLE);
 		} else {
 			buttonState = TRUE;
+			#ifdef DEBUG
+			released++;
+			#endif // DEBUG
+			TIM2_Cmd(DISABLE);
+			swichClockMode();
 		}
 	}
 	lastTick = getCurrentTick();
@@ -246,8 +378,30 @@ INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
   */
 INTERRUPT_HANDLER(TIM1_UPD_OVF_TRG_BRK_IRQHandler, 11)
 {
-	timeTick++;
 	TIM1_ClearITPendingBit(TIM1_IT_UPDATE);
+	timeTick++;
+}
+
+/**
+  * @brief Timer2 Update/Overflow/Break Interrupt routine.
+  * @param  None
+  * @retval None
+  */
+INTERRUPT_HANDLER(TIM2_UPD_OVF_BRK_IRQHandler, 13)
+{
+	TIM2_ClearITPendingBit(TIM2_IT_UPDATE);
+	switch(clockMode) {
+	case CLOCK_MODE_HOURS_MINUTES:
+	case CLOCK_MODE_MINUTES_SECONDS:
+		clockMode = CLOCK_MODE_SETTINGS;
+		break;
+	case CLOCK_MODE_SETTINGS:
+		settingsParam = SETTINGS_PARAM_DISCARD;
+		break;
+	default:
+		break;
+	}
+	GPIO_WriteReverse(GPIOC, RED_LED_PIN);
 }
 
 /* PINMAP
