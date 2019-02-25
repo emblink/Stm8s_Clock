@@ -3,7 +3,7 @@
 *.png
 *.pdf
 *.jpg
-StdPeriph_lib/
-settings/
-Release/
-Debug/
+*StdPeriph_lib/
+*settings/
+*Release/
+*Debug/
