@@ -11,6 +11,7 @@ typedef enum SymbolShift {
 } FontSymbolShift;
 
 const uint8_t * fontGetNumberArray(uint8_t number);
+const uint8_t * fontGetCharArray(char c);
 const uint8_t * fontGetSpaceArray(void);
 uint8_t * fontGetNumberArrayShifted(uint8_t number, FontSymbolShift shiftDirection, uint8_t shift);
 uint8_t * fontAddDots(const uint8_t fontSymbol[FONT_SYMBOL_SIZE_IN_BYTES], FontSymbolShift dotsSide);
