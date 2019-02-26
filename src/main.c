@@ -12,7 +12,7 @@
 #include "DS1307.h"
 #include "i2c.h"
 
-#define RELEASE
+//#define RELEASE
 #ifndef RELEASE
 	#define DEBUG
 #endif // RELEASE
@@ -48,7 +48,7 @@ typedef union RealTimeClock {
 static const uint16_t modeUpdatePeriod[CLOCK_MODE_COUNT] = {
 	[CLOCK_MODE_HOURS_MINUTES] = 1000,
 	[CLOCK_MODE_MINUTES_SECONDS] = 1000,
-	[CLOCK_MODE_SETTINGS] = 200,
+	[CLOCK_MODE_SETTINGS] = 250,
 };
 
 static void processClockMode(void);
@@ -64,7 +64,8 @@ static void swichClockMode(void);
 static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
 static SettingsMode settingsMode = SETTINGS_MODE_HOURS;
 static volatile bool panelProcess = TRUE;
-static volatile bool buttonHoldEventHappend = FALSE;
+static volatile bool buttonHoldEvent = FALSE;
+static volatile bool settingsHoldEvent = FALSE;
 static uint8_t *encoderCounter = NULL;
 static volatile uint16_t timeTick = 0;
 static RealTimeClock rtc = {0};
@@ -149,7 +150,7 @@ int main( void )
 				break;
 			}
 		}
-		wfi();
+		//wfi();
 	}
 }
 
@@ -184,7 +185,8 @@ static void processSettingsMode(void) {
 	
 	highlightSettingsValue();
 
-	if (buttonHoldEventHappend) {
+	if (settingsHoldEvent) {
+		settingsHoldEvent = FALSE;
 		switch(settingsMode) {	
 		case SETTINGS_MODE_APPLY:
 			ds1307_set_hours(rtc.time.hours);
@@ -198,16 +200,15 @@ static void processSettingsMode(void) {
 			ds1307_reset();
 			break;
 		default:
+			settingsInited = FALSE;
 			break;
 		}
-		settingsInited = FALSE;
 	}
 	
 	if (!settingsInited) {
 		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // disable encoder Interrupts
 		encoderCounter = NULL;
 		clockMode = CLOCK_MODE_HOURS_MINUTES;
-		buttonHoldEventHappend = FALSE;
 		panelProcess = TRUE;
 	}
 }
@@ -340,14 +341,19 @@ static volatile uint16_t encoderLastTick = 0;
 static uint8_t encoderChannelAState = 0;
 static uint8_t encoderChannelBState = 0;
 static uint8_t encoderChannelAPrevState = 0;
-#define ENCODER_DEBOUNCE 10
+static uint8_t encoderChannelBPrevState = 0;
+#define ENCODER_DEBOUNCE 10 // add capasitors 
 	
 INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 {
 	encoderChannelAState = (GPIOA->IDR & GPIO_PIN_1) >> 1;
 	encoderChannelBState = (GPIOA->IDR & GPIO_PIN_2) >> 2;
+	static uint16_t counter = 0;
+	counter++;
 	uint16_t currentTick = getCurrentTick();
-	if (currentTick - encoderLastTick > ENCODER_DEBOUNCE && encoderChannelAPrevState != encoderChannelAState) {
+	if (currentTick - encoderLastTick > ENCODER_DEBOUNCE) {
+		static uint16_t ISR_COUNTER = 0;
+		ISR_COUNTER++;
 #ifdef DEBUG
 	  	static BitStatus channelAState = RESET;
 		static BitStatus channelBState = RESET;
@@ -361,11 +367,16 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 			}
 		} else {
 			if (encoderCounter) {
-				*encoderCounter -= 1;
-				*encoderCounter %= 60;
+				if (*encoderCounter > 0) {
+					*encoderCounter -= 1;
+					*encoderCounter %= 60;
+				} else {
+					*encoderCounter = 59;
+				}
 			}
 		}
 		encoderChannelAPrevState = encoderChannelAState;
+		encoderChannelBPrevState = encoderChannelBState;
 	}
 	encoderLastTick = currentTick;
 }
@@ -405,7 +416,11 @@ INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 			released++;
 			#endif // DEBUG
 			TIM2_Cmd(DISABLE);
-			swichClockMode();
+			if (buttonHoldEvent) {
+				buttonHoldEvent = FALSE;
+			} else {
+				swichClockMode();
+			}
 		}
 	}
 	lastTick = getCurrentTick();
@@ -434,8 +449,9 @@ INTERRUPT_HANDLER(TIM2_UPD_OVF_BRK_IRQHandler, 13)
 	if (clockMode != CLOCK_MODE_SETTINGS) {
 		clockMode = CLOCK_MODE_SETTINGS;
 	} else {
-		buttonHoldEventHappend = TRUE;
+		settingsHoldEvent = TRUE;
 	}
+	buttonHoldEvent = TRUE;
 	GPIO_WriteReverse(GPIOC, RED_LED_PIN);
 }
 

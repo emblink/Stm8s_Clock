@@ -2,6 +2,7 @@
 StdPeriph_lib/
 settings/
 Release/
+Debug/Obj
 Debug/
 
 # Files
