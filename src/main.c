@@ -11,6 +11,7 @@
 #include "max7219.h"
 #include "DS1307.h"
 #include "i2c.h"
+#include "print.h"
 
 #define NULL	0
 
@@ -126,8 +127,8 @@ int main( void )
 	
 	/* Check for Reset to Defaults condition */
 	if(!(GPIOC->IDR & BUTTON_PIN)) {
-		max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_DEFAULT);
-		ds1307_reset();
+		//max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_DEFAULT);
+		//ds1307_reset();
 		// epprom write default intensity mode
 	}
 	

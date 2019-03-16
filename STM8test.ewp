@@ -1703,4 +1703,10 @@
     <file>
         <name>$PROJ_DIR$\src\max7219.h</name>
     </file>
+    <file>
+        <name>$PROJ_DIR$\src\print.c</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\src\print.h</name>
+    </file>
 </project>

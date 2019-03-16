@@ -2,9 +2,12 @@
 #define __PRINT_H
 
 #include "stm8s.h"
+#include "font.h"
+#include "max7219.h"
 
-#define MAX_PRINT_SIZE 
+/* column quantity */
+#define PRINT_MAX_LEN (MAX7219_NUMBER_COUNT * FONT_SYMBOL_SIZE_IN_BYTES)
 
-bool print(*uint8_t str, uint16_t len);
+void print(uint8_t str[], uint16_t len, FontType font);
 
 #endif __PRINT_H

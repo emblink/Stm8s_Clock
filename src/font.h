@@ -3,7 +3,17 @@
 
 #include "stm8s.h"
 
-#define FONT_SYMBOL_SIZE_IN_BYTES 8
+typedef enum FontType {
+	FONT_TYPE_BIG,
+	FONT_TYPE_SMALL,
+	FONT_TYPE_COUNT,
+} FontType;
+
+/* how many columns occupy one symbol */
+const uint8_t fontSymbolSize[FONT_TYPE_COUNT] = {
+	[FONT_TYPE_BIG] = 6,
+	[FONT_TYPE_SMALL] = 3,
+};
 
 typedef enum SymbolShift {
 	FONT_SYMBOL_LEFT_SHIFT,
