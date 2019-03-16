@@ -15,6 +15,7 @@ const uint8_t * fontGetCharArray(char c);
 const uint8_t * fontGetSpaceArray(void);
 uint8_t * fontGetNumberArrayShifted(uint8_t number, FontSymbolShift shiftDirection, uint8_t shift);
 uint8_t * fontAddDots(const uint8_t fontSymbol[FONT_SYMBOL_SIZE_IN_BYTES], FontSymbolShift dotsSide);
+uint8_t * fontGetStringArray(uint8_t buffer[], uint16_t bufferLen);
 #endif // __FONT_H
 
 

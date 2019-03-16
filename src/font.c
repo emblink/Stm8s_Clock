@@ -17,9 +17,27 @@ static const uint8_t fontNumberArray[][8] = {
 	{0x78, 0xCC, 0xCC, 0x7C, 0x0C, 0x18, 0x70, 0x00}, // 0x39 // 9
 };
 
+static const uint8_t fontSpaceArray[8] = 
+	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Space
+
+static const uint8_t fontSmallNumberArray[][3] = {
+	{0xC7, 0x44, 0xC7}, // 0x30 // 0
+	{0x80, 0x40, 0xC7}, // 0x31 // 1
+	{0x23, 0xA2, 0x62}, // 0x32 // 2 // TODO: TEST 
+	{0x45, 0x45, 0xC7}, // 0x33 // 3
+	{0x00, 0x00, 0x00}, // 0x34 // 4
+	{0x00, 0x00, 0x00}, // 0x35 // 5
+	{0x00, 0x00, 0x00}, // 0x36 // 6
+	{0x00, 0x00, 0x00}, // 0x37 // 7
+	{0x00, 0x00, 0x00}, // 0x38 // 8
+	{0x00, 0x00, 0x00}, // 0x39 // 9
+};
+
+static const uint8_t fontSmallSpace[] = {0x00};
+
 /* https://github.com/watterott/RPi-WS2812-HAT/blob/master/software/Text.ino */
 static const uint8_t fontCharArray[][8] = {
-	0x30,0x78,0xCC,0xCC,0xFC,0xCC,0xCC,0x00, // 0x41
+	0x30,0x78,0xCC,0xCC,0xFC,0xCC,0xCC,0x00, // 0x41 // A
 	0xFC,0x66,0x66,0x7C,0x66,0x66,0xFC,0x00, // 0x42
 	0x3C,0x66,0xC0,0xC0,0xC0,0x66,0x3C,0x00, // 0x43
 	0xFC,0x6C,0x66,0x66,0x66,0x6C,0xFC,0x00, // 0x44
@@ -45,11 +63,8 @@ static const uint8_t fontCharArray[][8] = {
 	0xC6,0xC6,0x6C,0x38,0x6C,0xC6,0xC6,0x00, // 0x58
 	0xCC,0xCC,0xCC,0x78,0x30,0x30,0x78,0x00, // 0x59
 	0xFE,0xCC,0x98,0x30,0x62,0xC6,0xFE,0x00, // 0x5A
-	0x78,0x60,0x60,0x60,0x60,0x60,0x78,0x00, // 0x5B
+	0x78,0x60,0x60,0x60,0x60,0x60,0x78,0x00, // 0x5B // Z
 };
-		
-static const uint8_t fontSpaceArray[8] = 
-	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Space
 
 static uint8_t symbol[FONT_SYMBOL_SIZE_IN_BYTES] = {0};
 
@@ -110,3 +125,71 @@ const uint8_t * fontGetSpaceArray(void)
 {
 	return fontSpaceArray; 
 }
+
+/*
+uint8_t * fontGetStringArray(uint8_t columnString[], uint16_t columnStringLen, uint8_t filledRowArray[])
+{
+	for (uint16_t col = 0; col <= columnStringLen / 8 ; col++) {
+		for (uint16_t row = 0; row < 8; row++) {
+			for (uint8_t bitNumber = 0; bitNumber < 8; bitNumber++) {
+				filledRowArray[row][] |= (1);
+			}
+		}
+		panelIndex++;
+	}
+}
+
+	for (uint8_t row = 0; row < 8; row++) {
+		uint8_t bit = 1 << row;
+		for (int8_t i = 7, bit_indx = 0; i >= 0; i--, bit_indx++) {
+			uint8_t data = 0x00;
+			data = array[i] & bit; // read bit
+			data >>= row; // move to 0 position
+			data <<= bit_indx; // move to proper position
+			if (!data) { // == 0x00
+				uint8_t data_and_mask = ~(1 << bit_indx); // create mask
+				fill_array[row] &= (data | data_and_mask); // write 0 in bit
+			} else {
+				fill_array[row] |= (data); // write 1 in bit
+			}
+		}
+	}
+	
+}
+
+*/
+
+/*
+
+function transform array of columns into array of rows, that can be sent to max7219
+static void trans_panel(uint8_t *array, uint8_t *fill_array)
+{
+	for (uint8_t row = 0; row < 8; row++) {
+		uint8_t bit = 1 << row;
+		for (int8_t i = 7, bit_indx = 0; i >= 0; i--, bit_indx++) {
+			uint8_t data = 0x00;
+			data = array[i] & bit; // read bit
+			data >>= row; // move to 0 position
+			data <<= bit_indx; // move to proper position
+			if (!data) { // == 0x00
+				uint8_t data_and_mask = ~(1 << bit_indx); // create mask
+				fill_array[row] &= (data | data_and_mask); // write 0 in bit
+			}
+			else
+				fill_array[row] |= (data); // write 1 in bit
+		}
+    }
+}
+
+
+void update_screen(uint8_t *screenbuff)
+{
+	uint8_t buff_to_send[LED_NUM * 8];
+	for (uint8_t n = 0; n < LED_NUM; n++) {
+		uint8_t indx = n << 3;
+		trans_panel(&screenbuff[indx], &buff_to_send[indx]);
+		max7219_send_char_to(n, &buff_to_send[indx]);
+	}
+}
+
+*/

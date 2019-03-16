@@ -12,27 +12,22 @@
 #include "DS1307.h"
 #include "i2c.h"
 
-//#define RELEASE
-#ifndef RELEASE
-	#define DEBUG
-#endif // RELEASE
-
 #define NULL	0
 
 typedef enum ClockMode {
 	CLOCK_MODE_HOURS_MINUTES,
 	CLOCK_MODE_MINUTES_SECONDS,
+	CLOCK_MODE_HOURS_MINUTES_SECONDS,
 	CLOCK_MODE_SETTINGS,
 	CLOCK_MODE_COUNT,
 } ClockMode;
 
 typedef enum SettingsMode {
-	SETTINGS_MODE_HOURS,
-	SETTINGS_MODE_MINUTES,
-	SETTINGS_MODE_SECONDS,
+	SETTINGS_MODE_SET_HOURS,
+	SETTINGS_MODE_SET_MINUTES,
+	SETTINGS_MODE_SET_SECONDS,
 	SETTINGS_MODE_APPLY,
 	SETTINGS_MODE_DISCARD,
-	SETTINGS_MODE_RESET,
 	SETTINGS_MODE_COUNT,
 } SettingsMode;
 
@@ -48,6 +43,7 @@ typedef union RealTimeClock {
 static const uint16_t modeUpdatePeriod[CLOCK_MODE_COUNT] = {
 	[CLOCK_MODE_HOURS_MINUTES] = 1000,
 	[CLOCK_MODE_MINUTES_SECONDS] = 1000,
+	[CLOCK_MODE_HOURS_MINUTES_SECONDS] = 1000,
 	[CLOCK_MODE_SETTINGS] = 250,
 };
 
@@ -56,13 +52,10 @@ static void processSettingsMode(void);
 static void highlightSettingsValue(void);
 static uint16_t getCurrentTick(void);
 static void updateTime(void);
-#ifdef DEBUG
-static void delayMs(uint16_t delay);
-#endif // DEBUG
 static void swichClockMode(void);
 
 static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
-static SettingsMode settingsMode = SETTINGS_MODE_HOURS;
+static SettingsMode settingsMode;
 static volatile bool panelProcess = TRUE;
 static volatile bool buttonHoldEvent = FALSE;
 static volatile bool settingsHoldEvent = FALSE;
@@ -131,6 +124,13 @@ int main( void )
 	
 	enableInterrupts();
 	
+	/* Check for Reset to Defaults condition */
+	if(!(GPIOC->IDR & BUTTON_PIN)) {
+		max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_DEFAULT);
+		ds1307_reset();
+		// epprom write default intensity mode
+	}
+	
 	/* Start application timer */
 	TIM1_Cmd(ENABLE);
 	
@@ -140,6 +140,7 @@ int main( void )
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
 			case CLOCK_MODE_MINUTES_SECONDS:
+			case CLOCK_MODE_HOURS_MINUTES_SECONDS:
 				updateTime();
 				processClockMode();
 				break;
@@ -175,7 +176,7 @@ static void processSettingsMode(void) {
 	static bool settingsInited = FALSE;
 	
 	if (!settingsInited) {
-		settingsMode = SETTINGS_MODE_HOURS;
+		settingsMode = SETTINGS_MODE_SET_HOURS;
 		encoderCounter = &rtc.data[settingsMode];
 		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_IT); // A1 // enable encoder Interrupts
 		max7219SendSymbol(MAX7219_NUMBER_COUNT, fontGetSpaceArray());
@@ -196,13 +197,10 @@ static void processSettingsMode(void) {
 		case SETTINGS_MODE_DISCARD:
 			updateTime();
 			break;
-		case SETTINGS_MODE_RESET:
-			ds1307_reset();
-			break;
 		default:
-			settingsInited = FALSE;
 			break;
 		}
+		settingsInited = FALSE;
 	}
 	
 	if (!settingsInited) {
@@ -213,6 +211,28 @@ static void processSettingsMode(void) {
 	}
 }
 
+/*
+static void precessTestMode(void)
+{
+	static bool blink = FALSE;
+	
+	static const uint8_t image[][8] = 
+	{
+		{0x00,0x00,0x1c,0x10,0x1c,0x14,0x1c,0x00},
+		{0x00,0x00,0xe7,0x82,0xe2,0x23,0xe2,0x00},
+		{0x00,0x00,0x39,0x21,0x31,0x21,0x39,0x00},
+		{0x00,0x00,0x0e,0x02,0xc4,0x48,0x4e,0x00},
+	};
+	
+	static uint8_t 
+	if (blink)
+	max7219SendSymbol(MAX7219_NUMBER_0, image[0]);
+	max7219SendSymbol(MAX7219_NUMBER_1, image[1]);
+	max7219SendSymbol(MAX7219_NUMBER_2, image[2]);
+	max7219SendSymbol(MAX7219_NUMBER_3, image[3]);
+}
+*/
+
 static void swichClockMode(void)
 {
 	switch (clockMode) {
@@ -221,20 +241,24 @@ static void swichClockMode(void)
 		panelProcess = TRUE;
 		break;
 	case CLOCK_MODE_MINUTES_SECONDS:
+		clockMode = CLOCK_MODE_HOURS_MINUTES_SECONDS;
+		panelProcess = TRUE;
+		break;
+	case CLOCK_MODE_HOURS_MINUTES_SECONDS:
 		clockMode = CLOCK_MODE_HOURS_MINUTES;
 		panelProcess = TRUE;
 		break;
 	case CLOCK_MODE_SETTINGS:
 		switch(settingsMode) {
-		case SETTINGS_MODE_HOURS:
-			settingsMode = SETTINGS_MODE_MINUTES;
+		case SETTINGS_MODE_SET_HOURS:
+			settingsMode = SETTINGS_MODE_SET_MINUTES;
 			encoderCounter = &rtc.data[settingsMode];
 			break;
-		case SETTINGS_MODE_MINUTES:
-			settingsMode = SETTINGS_MODE_SECONDS;
+		case SETTINGS_MODE_SET_MINUTES:
+			settingsMode = SETTINGS_MODE_SET_SECONDS;
 			encoderCounter = &rtc.data[settingsMode];
 			break;
-		case SETTINGS_MODE_SECONDS:
+		case SETTINGS_MODE_SET_SECONDS:
 			settingsMode = SETTINGS_MODE_APPLY;
 			encoderCounter = NULL;
 			break;
@@ -242,11 +266,10 @@ static void swichClockMode(void)
 			settingsMode = SETTINGS_MODE_DISCARD;
 			break;
 		case SETTINGS_MODE_DISCARD:
-			settingsMode = SETTINGS_MODE_RESET;
+			settingsMode = SETTINGS_MODE_SET_HOURS;
 			break;
-		case SETTINGS_MODE_RESET:
 		default:
-			settingsMode = SETTINGS_MODE_HOURS;
+			settingsMode = SETTINGS_MODE_SET_HOURS;
 			encoderCounter = &rtc.data[settingsMode];
 			break;
 		}
@@ -260,8 +283,10 @@ static void highlightSettingsValue()
 {
 	static bool blink = FALSE;
 	switch(settingsMode) {
-	case SETTINGS_MODE_HOURS:
-	case SETTINGS_MODE_MINUTES:
+	case SETTINGS_MODE_SET_HOURS:
+	case SETTINGS_MODE_SET_MINUTES:
+	case SETTINGS_MODE_SET_SECONDS:
+		/*
 		if (blink) {
 			max7219SendSymbol(MAX7219_NUMBER_0, fontGetSpaceArray());
 			max7219SendSymbol(MAX7219_NUMBER_1, fontGetSpaceArray());
@@ -283,6 +308,7 @@ static void highlightSettingsValue()
 			max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(rtc.data[settingsMode] % 10));
 		}
 		break;
+		*/
 	case SETTINGS_MODE_APPLY:
 		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('A')); // A
 		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('P')); // P
@@ -293,12 +319,6 @@ static void highlightSettingsValue()
 		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('E')); // E
 		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('X')); // X
 		max7219SendSymbol(MAX7219_NUMBER_2, fontGetCharArray('I')); // I
-		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('T')); // T
-		break;
-	case SETTINGS_MODE_RESET:
-		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('R')); // R
-		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('S')); // S
-		max7219SendSymbol(MAX7219_NUMBER_2, fontGetCharArray('E')); // E
 		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('T')); // T
 		break;
 	default:
@@ -323,14 +343,6 @@ static uint16_t getCurrentTick(void)
   return tick;
 }
 
-#ifdef DEBUG
-static void delayMs(uint16_t delay)
-{
-	while(delay--)
-		for (uint16_t i = 0; i < 2000; i++);
-}
-#endif // DEBUG
-
 /* Encoder Interrupt Handler */
 /**
   * @brief External Interrupt PORTA Interrupt routine.
@@ -340,8 +352,6 @@ static void delayMs(uint16_t delay)
 static volatile uint16_t encoderLastTick = 0;
 static uint8_t encoderChannelAState = 0;
 static uint8_t encoderChannelBState = 0;
-static uint8_t encoderChannelAPrevState = 0;
-static uint8_t encoderChannelBPrevState = 0;
 #define ENCODER_DEBOUNCE 10 // add capasitors 
 	
 INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
@@ -354,12 +364,7 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 	if (currentTick - encoderLastTick > ENCODER_DEBOUNCE) {
 		static uint16_t ISR_COUNTER = 0;
 		ISR_COUNTER++;
-#ifdef DEBUG
-	  	static BitStatus channelAState = RESET;
-		static BitStatus channelBState = RESET;
-	  	channelAState = encoderChannelAState;
-		channelBState = encoderChannelBState;
-#endif // DEBUG
+
 		if (encoderChannelAState != encoderChannelBState) {
 			if (encoderCounter) {
 				*encoderCounter += 1;
@@ -375,8 +380,6 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 				}
 			}
 		}
-		encoderChannelAPrevState = encoderChannelAState;
-		encoderChannelBPrevState = encoderChannelBState;
 	}
 	encoderLastTick = currentTick;
 }
@@ -391,30 +394,15 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 #define DEBOUNCE_TIME 10
 static uint16_t lastTick = 0;
 
-#ifdef DEBUG
-static volatile uint8_t interruptEnterCount = 0;
-static volatile uint8_t pressed = 0;
-static volatile uint8_t released = 0;
-#endif // DEBUG
-
 INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 {
-	#ifdef DEBUG
-	interruptEnterCount++;
-	#endif // DEBUG
 	static bool buttonState = TRUE;
 	if (getCurrentTick() - lastTick > DEBOUNCE_TIME) {
 		if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN) && buttonState) {
 			buttonState = FALSE;
-			#ifdef DEBUG
-			pressed++;
-			#endif // DEBUG
 			TIM2_Cmd(ENABLE);
 		} else {
 			buttonState = TRUE;
-			#ifdef DEBUG
-			released++;
-			#endif // DEBUG
 			TIM2_Cmd(DISABLE);
 			if (buttonHoldEvent) {
 				buttonHoldEvent = FALSE;
