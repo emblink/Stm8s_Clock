@@ -50,5 +50,6 @@ typedef enum Max7219CommandArgument {
 bool max7219Init(uint8_t dataBuff[MAX7219_BUFF_SIZE], uint16_t dataBuffSize);
 bool max7219SendCommand(Max7219Number max7219Number, Max7219Command cmd, Max7219CommandArgument arg);
 void max7219SendSymbol(Max7219Number max7219Number, const uint8_t symbol[FONT_SYMBOL_SIZE_IN_BYTES]);
+void max7219SendData(const uint8_t dataBuff[], uint16_t size);
 
 #endif // __MAX_7219_H

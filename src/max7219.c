@@ -26,7 +26,6 @@ typedef enum Max7219Register {
 static uint8_t *dataBuff;
 static bool isMax7219Inited = FALSE;
 static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register reg, uint8_t arg);
-static void max7219SendData(const uint8_t dataBuff[], uint16_t size);
 static bool max7219SendSettings(void);
 
 static inline void spiPushByte(uint8_t byte)
@@ -114,7 +113,7 @@ static bool max7219SendSettings(void)
 	return TRUE;
 }
 
-static void max7219SendData(const uint8_t dataBuff[], uint16_t size)
+void max7219SendData(const uint8_t dataBuff[], uint16_t size)
 {
 	max7219PushData();
 	for (uint16_t i = 0; i < size; i++)

@@ -53,7 +53,7 @@ static void processSettingsMode(void);
 static void highlightSettingsValue(void);
 static uint16_t getCurrentTick(void);
 static void updateTime(void);
-static void swichClockMode(void);
+//static void swichClockMode(void);
 
 static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
 static SettingsMode settingsMode;
@@ -137,6 +137,7 @@ int main( void )
 	
 	while(1)
 	{
+		/*
 		if (!(timeTick % modeUpdatePeriod[clockMode]) || panelProcess) {
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
@@ -153,9 +154,26 @@ int main( void )
 			}
 		}
 		//wfi();
+		*/
+	if (timeTick % 1000 == 0) {
+		max7219Init(max7219Buff, sizeof(max7219Buff));
+	}
+
+	if (timeTick % 100 == 0) {
+		uint8_t data[] = "0122";
+		uint8_t data1[] = "1";
+		static uint8_t xorFlag = 0;
+		if (xorFlag)
+			print(data, sizeof(data) - 1, FONT_TYPE_BIG);
+		else
+			print(data1, sizeof(data1) - 1, FONT_TYPE_BIG);
+
+		xorFlag ^= 1;
+	}
+
 	}
 }
-
+/*
 static void processClockMode(void)
 {
 	static bool blink = FALSE;
@@ -211,7 +229,7 @@ static void processSettingsMode(void) {
 		panelProcess = TRUE;
 	}
 }
-
+*/
 /*
 static void precessTestMode(void)
 {
@@ -234,6 +252,7 @@ static void precessTestMode(void)
 }
 */
 
+/*
 static void swichClockMode(void)
 {
 	switch (clockMode) {
@@ -279,7 +298,9 @@ static void swichClockMode(void)
 		break;
 	}
 }
+*/
 
+/*
 static void highlightSettingsValue()
 {
 	static bool blink = FALSE;
@@ -287,7 +308,7 @@ static void highlightSettingsValue()
 	case SETTINGS_MODE_SET_HOURS:
 	case SETTINGS_MODE_SET_MINUTES:
 	case SETTINGS_MODE_SET_SECONDS:
-		/*
+		
 		if (blink) {
 			max7219SendSymbol(MAX7219_NUMBER_0, fontGetSpaceArray());
 			max7219SendSymbol(MAX7219_NUMBER_1, fontGetSpaceArray());
@@ -309,7 +330,7 @@ static void highlightSettingsValue()
 			max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(rtc.data[settingsMode] % 10));
 		}
 		break;
-		*/
+		
 	case SETTINGS_MODE_APPLY:
 		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('A')); // A
 		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('P')); // P
@@ -327,6 +348,7 @@ static void highlightSettingsValue()
 	}
 	blink ^= TRUE;
 }
+*/
 
 static void updateTime(void)
 {
@@ -397,6 +419,7 @@ static uint16_t lastTick = 0;
 
 INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 {
+	/*
 	static bool buttonState = TRUE;
 	if (getCurrentTick() - lastTick > DEBOUNCE_TIME) {
 		if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN) && buttonState) {
@@ -413,6 +436,7 @@ INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 		}
 	}
 	lastTick = getCurrentTick();
+	*/
 }
 
 /* Application Timer Interrupt Handler */
