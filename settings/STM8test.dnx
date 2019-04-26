@@ -16,7 +16,7 @@
         <ShowSource>1</ShowSource>
     </Trace1>
     <DebugChecksum>
-        <Checksum>2474661306</Checksum>
+        <Checksum>3343984122</Checksum>
     </DebugChecksum>
     <CodeCoverage>
         <Enabled>_ 0</Enabled>
@@ -77,11 +77,25 @@
         <MultiCoreRunAll>1</MultiCoreRunAll>
     </Simulator>
     <watch_formats>
-        <Fmt0>{W}1:fontSymbolSize	3	0</Fmt0>
-        <Fmt1>{W}42:channelAState	3	0</Fmt1>
-        <Fmt2>{W}42:channelBState	3	0</Fmt2>
-        <Fmt3>{W}42:encoderChannelAState	3	0</Fmt3>
-        <Fmt4>{W}42:encoderChannelBState	3	0</Fmt4>
+        <Fmt0>{W}1:data	4	0</Fmt0>
+        <Fmt1>{W}1:fontSymbolSize	3	0</Fmt1>
+        <Fmt2>{W}1:ptr	4	0</Fmt2>
+        <Fmt3>{W}1:ret	4	0</Fmt3>
+        <Fmt4>{W}1:symbol	3	0</Fmt4>
+        <Fmt5>{W}2:dat	4	0</Fmt5>
+        <Fmt6>{W}2:data	4	0</Fmt6>
+        <Fmt7>{W}2:data[0]	4	0</Fmt7>
+        <Fmt8>{W}2:data[1]	4	0</Fmt8>
+        <Fmt9>{W}2:data[2]	4	0</Fmt9>
+        <Fmt10>{W}2:data[3]	4	0</Fmt10>
+        <Fmt11>{W}2:data[4]	4	0</Fmt11>
+        <Fmt12>{W}2:data[5]	4	0</Fmt12>
+        <Fmt13>{W}2:mask	4	0</Fmt13>
+        <Fmt14>{W}2:transBuff[i]	4	0</Fmt14>
+        <Fmt15>{W}42:channelAState	3	0</Fmt15>
+        <Fmt16>{W}42:channelBState	3	0</Fmt16>
+        <Fmt17>{W}42:encoderChannelAState	3	0</Fmt17>
+        <Fmt18>{W}42:encoderChannelBState	3	0</Fmt18>
     </watch_formats>
     <DataSample>
         <LogEnabled>0</LogEnabled>

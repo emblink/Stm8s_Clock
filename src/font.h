@@ -23,6 +23,7 @@ typedef enum FontType {
 
 const uint8_t * fontGetSymbolData(uint8_t symbol, FontType font);
 uint8_t fontGetSymbolSize(FontType font);
+
 #endif // __FONT_H
 
 

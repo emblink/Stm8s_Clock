@@ -120,8 +120,7 @@ int main( void )
 	TIM2_ITConfig(TIM2_IT_UPDATE, ENABLE);
 
 	/* Max7219 Init */
-	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
-	max7219Init(max7219Buff, sizeof(max7219Buff));
+	max7219Init();
 	
 	enableInterrupts();
 	
@@ -156,19 +155,19 @@ int main( void )
 		//wfi();
 		*/
 	if (timeTick % 1000 == 0) {
-		max7219Init(max7219Buff, sizeof(max7219Buff));
+		max7219Init();
 	}
 
 	if (timeTick % 100 == 0) {
-		uint8_t data[] = "0122";
+		//uint8_t data[] = "0122";
 		uint8_t data1[] = "1";
-		static uint8_t xorFlag = 0;
-		if (xorFlag)
-			print(data, sizeof(data) - 1, FONT_TYPE_BIG);
-		else
+		//static uint8_t xorFlag = 0;
+		//if (xorFlag)
+			//print(data, sizeof(data) - 1, FONT_TYPE_BIG);
+		//else
 			print(data1, sizeof(data1) - 1, FONT_TYPE_BIG);
 
-		xorFlag ^= 1;
+		//xorFlag ^= 1;
 	}
 
 	}

@@ -1,10 +1,10 @@
-"D:\IAR\stm8\bin\stm8proc.dll" 
+"D:\IAR_STM_8\stm8\bin\stm8proc.dll" 
 
-"D:\IAR\stm8\bin\stm8stlink.dll" 
+"D:\IAR_STM_8\stm8\bin\stm8stlink.dll" 
 
 "E:\stm8s\Debug\Exe\STM8test.out" 
 
---plugin "D:\IAR\stm8\bin\stm8bat.dll" 
+--plugin "D:\IAR_STM_8\stm8\bin\stm8bat.dll" 
 
 
 

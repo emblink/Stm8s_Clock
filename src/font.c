@@ -32,9 +32,9 @@ static const uint8_t fontSmallNumberData[][3] = {
 	{0xE3, 0xFE, 0x95}, // '9'
 };
 
-static const uint8_t *fontTypeMap[FONT_TYPE_COUNT] = {
-	[FONT_TYPE_BIG] = *fontBigNumberData,
-	[FONT_TYPE_SMALL] = *fontSmallNumberData,
+static const uint8_t * fontTypeMap[FONT_TYPE_COUNT] = {
+	[FONT_TYPE_BIG] = fontBigNumberData[0],
+	[FONT_TYPE_SMALL] = fontSmallNumberData[0],
 };
 
 /* how many columns occupy one symbol */
@@ -45,7 +45,8 @@ const uint8_t fontSymbolSize[FONT_TYPE_COUNT] = {
 
 const uint8_t * fontGetSymbolData(uint8_t symbol, FontType font)
 {
-	return fontTypeMap[font] + symbol - ASCII_OFFSET;
+    return fontTypeMap[font] + (symbol - ASCII_OFFSET) * fontSymbolSize[font]; 
+
 }
 
 uint8_t fontGetSymbolSize(FontType font)

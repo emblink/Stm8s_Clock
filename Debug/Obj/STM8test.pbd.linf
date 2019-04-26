@@ -1,10 +1,4 @@
 ﻿E:\stm8s\Debug\Obj\STM8test.pbd
-E:\stm8s\Debug\Obj\DS1307.pbi
-E:\stm8s\Debug\Obj\font.pbi
-E:\stm8s\Debug\Obj\i2c.pbi
-E:\stm8s\Debug\Obj\main.pbi
-E:\stm8s\Debug\Obj\max7219.pbi
-E:\stm8s\Debug\Obj\print.pbi
 E:\stm8s\Debug\Obj\stm8s_clk.pbi
 E:\stm8s\Debug\Obj\stm8s_exti.pbi
 E:\stm8s\Debug\Obj\stm8s_flash.pbi
@@ -15,3 +9,9 @@ E:\stm8s\Debug\Obj\stm8s_spi.pbi
 E:\stm8s\Debug\Obj\stm8s_tim1.pbi
 E:\stm8s\Debug\Obj\stm8s_tim2.pbi
 E:\stm8s\Debug\Obj\stm8s_wwdg.pbi
+E:\stm8s\Debug\Obj\DS1307.pbi
+E:\stm8s\Debug\Obj\font.pbi
+E:\stm8s\Debug\Obj\i2c.pbi
+E:\stm8s\Debug\Obj\main.pbi
+E:\stm8s\Debug\Obj\max7219.pbi
+E:\stm8s\Debug\Obj\print.pbi

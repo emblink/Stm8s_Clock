@@ -23,10 +23,10 @@ typedef enum Max7219Register {
     MAX7219_DISPLAY_TEST_REG = 0xF
 } Max7219Register;
 
-static uint8_t *dataBuff;
-static bool isMax7219Inited = FALSE;
+static uint8_t dataBuff[MAX7219_BUFF_SIZE] = {0};	
 static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register reg, uint8_t arg);
-static bool max7219SendSettings(void);
+static void max7219SendData(const uint8_t data[], uint16_t size);
+static void max7219SendSettings(void);
 
 static inline void spiPushByte(uint8_t byte)
 {
@@ -44,21 +44,13 @@ static inline void max7219LatchData(void)
 	GPIOC->ODR |= SPI_CS_PIN;
 }
 
-bool max7219Init(uint8_t buff[], uint16_t buffSize)
+void max7219Init()
 {
-	if (buff == NULL || buffSize < MAX7219_BUFF_SIZE)
-		return FALSE;
-	
-	dataBuff = buff;
 	max7219SendSettings();
-	return isMax7219Inited = TRUE;
 }
 
 bool max7219SendCommand(Max7219Number max7219Number, Max7219Command cmd, Max7219CommandArgument arg)
 {
-	if (max7219Number > MAX7219_NUMBER_COUNT || !isMax7219Inited)
-		return FALSE;
-	
 	Max7219Register reg;
 	switch(cmd) {
 	case MAX7219_SET_STATE:
@@ -85,9 +77,6 @@ bool max7219SendCommand(Max7219Number max7219Number, Max7219Command cmd, Max7219
 
 void max7219SendSymbol(Max7219Number max7219Number, const uint8_t symbol[FONT_SYMBOL_SIZE_IN_BYTES])
 {
-	if (!isMax7219Inited)
-		return;
-	
 	max7219SendSettings();
 	for (Max7219Register reg = MAX7219_ROW_1_REG; reg <= MAX7219_ROW_8_REG; reg++) {
 		max7219FillCommandBuff(max7219Number, reg, symbol[reg - 1]);
@@ -95,11 +84,8 @@ void max7219SendSymbol(Max7219Number max7219Number, const uint8_t symbol[FONT_SY
 	}
 }
 
-static bool max7219SendSettings(void)
+static void max7219SendSettings(void)
 {
-	if (!dataBuff)
-		return FALSE;
-	
 	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_SHUTDOWN_REG, MAX7219_STATE_ENABLE); // Turn On. Normal Operation
 	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
 	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_INTENSITY_REG, MAX7219_INTENSITY_LEVEL_DEFAULT);
@@ -110,14 +96,27 @@ static bool max7219SendSettings(void)
 	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
 	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_DECODE_MODE_REG, 0x00); // No decode mode.
 	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
-	return TRUE;
 }
 
-void max7219SendData(const uint8_t dataBuff[], uint16_t size)
+void max7219SendDataBuffer(const uint8_t data[], uint16_t size)
+{
+	uint8_t rowBuff[8];
+	uint16_t dataIdx = 0;
+	for (Max7219Register reg = MAX7219_ROW_1_REG; reg <= MAX7219_ROW_8_REG; reg++) {
+		uint16_t rowBuffIdx = 0;
+		for (Max7219Number chip = MAX7219_NUMBER_0; chip < MAX7219_NUMBER_COUNT; chip++) {
+			rowBuff[rowBuffIdx++] = reg;
+			rowBuff[rowBuffIdx++] = data[dataIdx++];
+		}
+		max7219SendData(rowBuff, sizeof(rowBuff));
+	}
+}
+
+static void max7219SendData(const uint8_t data[], uint16_t size)
 {
 	max7219PushData();
 	for (uint16_t i = 0; i < size; i++)
-		spiPushByte(dataBuff[i]);
+		spiPushByte(data[i]);
 	max7219LatchData();
 }
 
