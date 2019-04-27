@@ -294,7 +294,7 @@
                 </tool>
                 <tool>
                     <name>BICOMP</name>
-                    <file> 25 12 32 21 24</file>
+                    <file> 2 23 20 24 0 36 1 32 4 35 39 12 21 42 25</file>
                 </tool>
             </inputs>
         </file>
@@ -375,7 +375,7 @@
                 </tool>
                 <tool>
                     <name>BICOMP</name>
-                    <file> 25 32</file>
+                    <file> 32 39 36 25 42 0 2</file>
                 </tool>
             </inputs>
         </file>
@@ -402,7 +402,7 @@
                 </tool>
                 <tool>
                     <name>BICOMP</name>
-                    <file> 12</file>
+                    <file> 2 0 42 12</file>
                 </tool>
             </inputs>
         </file>
@@ -456,7 +456,7 @@
                 </tool>
                 <tool>
                     <name>BICOMP</name>
-                    <file> 24</file>
+                    <file> 2 23 0 24 42</file>
                 </tool>
             </inputs>
         </file>
@@ -507,6 +507,10 @@
                 <tool>
                     <name>ICCSTM8</name>
                     <file> 0 2 42 24 21</file>
+                </tool>
+                <tool>
+                    <name>BICOMP</name>
+                    <file> 2 0 42 24 21</file>
                 </tool>
             </inputs>
         </file>
@@ -655,66 +659,6 @@
                 </tool>
             </outputs>
         </file>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_exti.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_flash.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_clk.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_gpio.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_tim1.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_i2c.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\src\main.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_wwdg.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_it.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\src\max7219.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\src\font.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_spi.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\src\i2c.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_tim2.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
-        <forcedrebuild>
-            <name>$PROJ_DIR$\src\DS1307.c</name>
-            <tool>ICCSTM8</tool>
-        </forcedrebuild>
         <forcedrebuild>
             <name>$PROJ_DIR$\StsPeriph_Lib\stm8s_clk.c</name>
             <tool>ICCSTM8</tool>
