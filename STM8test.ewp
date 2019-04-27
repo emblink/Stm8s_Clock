@@ -256,8 +256,8 @@
                 </option>
                 <option>
                     <name>CCIncludePath2</name>
-                    <state>E:\stm8s\StdPeriph_lib</state>
-                    <state>E:\stm8s\src</state>
+                    <state>$PROJ_DIR$\StdPeriph_lib</state>
+                    <state>$PROJ_DIR$\src</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>

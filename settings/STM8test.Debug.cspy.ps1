@@ -23,9 +23,9 @@ param([String]$debugfile = "");
 
 if ($debugfile -eq "")
 {
-& "D:\IAR\common\bin\cspybat" -f "E:\stm8s\settings\STM8test.Debug.general.xcl" --backend -f "E:\stm8s\settings\STM8test.Debug.driver.xcl" 
+& "C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\common\bin\cspybat" -f "D:\Stm8s_Clock\settings\STM8test.Debug.general.xcl" --backend -f "D:\Stm8s_Clock\settings\STM8test.Debug.driver.xcl" 
 }
 else
 {
-& "D:\IAR\common\bin\cspybat" -f "E:\stm8s\settings\STM8test.Debug.general.xcl" --debug_file=$debugfile --backend -f "E:\stm8s\settings\STM8test.Debug.driver.xcl" 
+& "C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\common\bin\cspybat" -f "D:\Stm8s_Clock\settings\STM8test.Debug.general.xcl" --debug_file=$debugfile --backend -f "D:\Stm8s_Clock\settings\STM8test.Debug.driver.xcl" 
 }
