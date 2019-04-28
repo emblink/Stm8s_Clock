@@ -1,12 +1,10 @@
 #include "main.h"
 #include "stm8s.h"
-#include "stm8s_gpio.h"
 #include "stm8s_exti.h"
 #include "stm8s_tim1.h"
 #include "stm8s_tim2.h"
 #include "stm8s_clk.h"
 #include "stm8s_spi.h"
-#include "stm8s_i2c.h"
 #include "font.h"
 #include "max7219.h"
 #include "DS1307.h"
@@ -99,7 +97,7 @@ int main( void )
 	SPI_Cmd(ENABLE);
 	
 	/* Init I2c */
-	//i2cInit();
+	i2cInit();
 	
 	/* Timer 1 Init */
 	TIM1_DeInit();
@@ -130,7 +128,7 @@ int main( void )
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
 			case CLOCK_MODE_MINUTES_SECONDS:
-				//updateTime();
+				updateTime();
 				processClockMode();
 				break;
 			case CLOCK_MODE_SETTINGS:
@@ -140,7 +138,7 @@ int main( void )
 				break;
 			}
 		}
-		wfi();
+		//wfi();
 	}
 }
 
@@ -176,7 +174,6 @@ static void processSettingsMode(void) {
 	highlightSettingsValue();
 
 	if (settingsHoldEvent) {
-		settingsHoldEvent = FALSE;
 		switch(settingsMode) {	
 		case SETTINGS_MODE_APPLY:
 			ds1307_set_hours(rtc.time.hours);
@@ -195,11 +192,13 @@ static void processSettingsMode(void) {
 		}
 	}
 	
-	if (!settingsInited) {
+	if (settingsHoldEvent) {
 		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // disable encoder Interrupts
 		encoderCounter = NULL;
 		clockMode = CLOCK_MODE_HOURS_MINUTES;
 		panelProcess = TRUE;
+        settingsHoldEvent = FALSE;
+        settingsInited = FALSE;
 	}
 }
 
