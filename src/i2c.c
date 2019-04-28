@@ -16,8 +16,6 @@ void i2cInit(void)
 	I2C->ITR &= (~I2C_IT_ERR | ~I2C_IT_EVT | ~I2C_IT_BUF); // disable interrupts
 #endif
 	I2C_Cmd(ENABLE);
-	/* TODO: 21.4.2 I2C master mode - read 293 page of the datasheet
-	and add i2c functionality for DS1307 */
 }
 
 #ifdef I2C_INTERRUPT_METHOD

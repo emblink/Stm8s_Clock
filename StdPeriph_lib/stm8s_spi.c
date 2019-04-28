@@ -436,9 +436,9 @@ void spiSendData(const uint8_t data[], uint16_t len){
 void spiSetCsPin(bool state)
 {
   if (state)
-    GPIO_WriteHigh(GPIOC, SPI_CS_PIN);
+    gpioWritePin(SPI_CS_PIN);
   else 
-    GPIO_WriteLow(GPIOC, SPI_CS_PIN);
+    gpioWritePin(SPI_CS_PIN);
 }
 
 /*

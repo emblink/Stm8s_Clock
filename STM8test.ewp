@@ -1650,12 +1650,6 @@
             <name>$PROJ_DIR$\StdPeriph_lib\stm8s_it.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_spi.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_spi.h</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\StdPeriph_lib\stm8s_tim1.c</name>
         </file>
         <file>
@@ -1687,6 +1681,12 @@
         <name>$PROJ_DIR$\src\font.h</name>
     </file>
     <file>
+        <name>$PROJ_DIR$\src\gpio.c</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\src\gpio.h</name>
+    </file>
+    <file>
         <name>$PROJ_DIR$\src\i2c.c</name>
     </file>
     <file>
@@ -1703,5 +1703,11 @@
     </file>
     <file>
         <name>$PROJ_DIR$\src\max7219.h</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\src\spi.c</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\src\spi.h</name>
     </file>
 </project>

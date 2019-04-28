@@ -1,6 +1,6 @@
 #include "stm8s.h"
-#include "i2c.h"
 #include "DS1307.h"
+#include "i2c.h"
 
 enum ds1307_register {
     DS1307_SECONDS_REGISTER = 0x00,

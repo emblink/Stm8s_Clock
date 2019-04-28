@@ -4,11 +4,12 @@
 #include "stm8s_tim1.h"
 #include "stm8s_tim2.h"
 #include "stm8s_clk.h"
-#include "stm8s_spi.h"
+#include "gpio.h"
 #include "font.h"
 #include "max7219.h"
 #include "DS1307.h"
 #include "i2c.h"
+#include "spi.h"
 
 typedef enum ClockMode {
 	CLOCK_MODE_HOURS_MINUTES,
@@ -74,20 +75,20 @@ int main( void )
 	CLK_PeripheralClockConfig(CLK_PERIPHERAL_SPI, ENABLE);
 
 	/* Init Leds */
-	GPIO_Init(GPIOC, RED_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW); // C3
-	GPIO_Init(GPIOD, GREEN_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW); // D3
+	gpioPinInit(RED_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW); // C3
+	gpioPinInit(GREEN_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW); // D3
 	
 	/* Init Encoder */
-	GPIO_Init(GPIOC, BUTTON_PIN, GPIO_MODE_IN_PU_IT); // C4
+	//gpioPinInit(ENCODER_BUTTON_PIN, GPIO_MODE_IN_PU_IT); // C4
 	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_RISE_FALL);
-	GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // A1
+	//gpioPinInit(ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // A1
 	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOA, EXTI_SENSITIVITY_RISE_FALL);
-	GPIO_Init(GPIOA, ENCODER_CHANNEL_B_PIN, GPIO_MODE_IN_FL_NO_IT); // A2
+	//gpioPinInit(ENCODER_CHANNEL_B_PIN, GPIO_MODE_IN_FL_NO_IT); // A2
 	
 	/* Init SPI */
-	GPIO_Init(GPIOC, SPI_CS_PIN, GPIO_MODE_OUT_PP_HIGH_SLOW);
-	GPIO_Init(GPIOC, SPI_MOSI_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
-	GPIO_Init(GPIOC, SPI_SCK_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
+	gpioPinInit(SPI_CS_PIN, GPIO_MODE_OUT_PP_HIGH_SLOW);
+	gpioPinInit(SPI_MOSI_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
+	gpioPinInit(SPI_SCK_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
 	
 	SPI_DeInit();
 	SPI_Init(SPI_FIRSTBIT_MSB, SPI_BAUDRATEPRESCALER_2, SPI_MODE_MASTER,
@@ -95,7 +96,7 @@ int main( void )
 			 SPI_DATADIRECTION_1LINE_TX, SPI_NSS_SOFT, 0x07);
 	SPI_CalculateCRCCmd(DISABLE);
 	SPI_Cmd(ENABLE);
-	
+
 	/* Init I2c */
 	i2cInit();
 	
@@ -165,7 +166,7 @@ static void processSettingsMode(void) {
 	if (!settingsInited) {
 		settingsMode = SETTINGS_MODE_HOURS;
 		encoderCounter = &rtc.data[settingsMode];
-		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_IT); // A1 // enable encoder Interrupts
+		gpioPinInit(ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_IT); // A1 // enable encoder Interrupts
 		max7219SendSymbol(MAX7219_NUMBER_COUNT, fontGetSpaceArray());
 		settingsInited = TRUE;
 		panelProcess = FALSE;
@@ -193,7 +194,7 @@ static void processSettingsMode(void) {
 	}
 	
 	if (settingsHoldEvent) {
-		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // disable encoder Interrupts
+		gpioPinInit(ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // disable encoder Interrupts
 		encoderCounter = NULL;
 		clockMode = CLOCK_MODE_HOURS_MINUTES;
 		panelProcess = TRUE;
@@ -365,7 +366,7 @@ INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 {
 	static bool buttonState = TRUE;
 	if (getCurrentTick() - lastTick > DEBOUNCE_TIME) {
-		if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN) && buttonState) {
+		if (!gpioReadPin(ENCODER_BUTTON_PIN) && buttonState) {
 			buttonState = FALSE;
 			TIM2_Cmd(ENABLE);
 		} else {
@@ -407,7 +408,7 @@ INTERRUPT_HANDLER(TIM2_UPD_OVF_BRK_IRQHandler, 13)
 		settingsHoldEvent = TRUE;
 	}
 	buttonHoldEvent = TRUE;
-	GPIO_WriteReverse(GPIOC, RED_LED_PIN);
+	gpioTogglePin(RED_LED_PIN);
 }
 
 #ifdef USE_FULL_ASSERT
