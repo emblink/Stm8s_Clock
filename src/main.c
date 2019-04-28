@@ -79,11 +79,11 @@ int main( void )
 	gpioPinInit(GREEN_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW); // D3
 	
 	/* Init Encoder */
-	//gpioPinInit(ENCODER_BUTTON_PIN, GPIO_MODE_IN_PU_IT); // C4
+	gpioPinInit(ENCODER_BUTTON_PIN, GPIO_MODE_IN_PU_IT); // C4
 	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_RISE_FALL);
-	//gpioPinInit(ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // A1
+	gpioPinInit(ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // A1
 	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOA, EXTI_SENSITIVITY_RISE_FALL);
-	//gpioPinInit(ENCODER_CHANNEL_B_PIN, GPIO_MODE_IN_FL_NO_IT); // A2
+	gpioPinInit(ENCODER_CHANNEL_B_PIN, GPIO_MODE_IN_FL_NO_IT); // A2
 	
 	/* Init SPI */
 	gpioPinInit(SPI_CS_PIN, GPIO_MODE_OUT_PP_HIGH_SLOW);
@@ -131,6 +131,8 @@ int main( void )
 			case CLOCK_MODE_MINUTES_SECONDS:
 				updateTime();
 				processClockMode();
+                gpioTogglePin(RED_LED_PIN);
+                gpioTogglePin(GREEN_LED_PIN);
 				break;
 			case CLOCK_MODE_SETTINGS:
 				processSettingsMode();

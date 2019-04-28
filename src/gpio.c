@@ -20,7 +20,7 @@ static GpioPinStruct BspPinMap[BSP_PIN_COUNT] = {
 void gpioPinInit(BspPin pin, GpioMode mode)
 {  
   /* Reset corresponding bit to GPIO_Pin in CR2 register */
-  BspPinMap[pin].port->CR2 &= (uint8_t)(~pin);
+  BspPinMap[pin].port->CR2 &= (uint8_t)(~BspPinMap[pin].pin);
   
   /*-----------------------------*/
   /* Input/Output mode selection */
@@ -30,19 +30,19 @@ void gpioPinInit(BspPin pin, GpioMode mode)
   {
         if ((((uint8_t)(mode)) & (uint8_t)0x10) != (uint8_t)0x00) /* High level */
         {
-          BspPinMap[pin].port->ODR |= (uint8_t)pin;
+          BspPinMap[pin].port->ODR |= (uint8_t)BspPinMap[pin].pin;
         } 
         else /* Low level */
         {
-          BspPinMap[pin].port->ODR &= (uint8_t)(~pin);
+          BspPinMap[pin].port->ODR &= (uint8_t)(~BspPinMap[pin].pin);
         }
         /* Set Output mode */
-        BspPinMap[pin].port->DDR |= (uint8_t)pin;
+        BspPinMap[pin].port->DDR |= (uint8_t)BspPinMap[pin].pin;
   } 
   else /* Input mode */
   {
         /* Set Input mode */
-        BspPinMap[pin].port->DDR &= (uint8_t)(~pin);
+        BspPinMap[pin].port->DDR &= (uint8_t)(~BspPinMap[pin].pin);
   }
   
   /*------------------------------------------------------------------------*/
@@ -51,11 +51,11 @@ void gpioPinInit(BspPin pin, GpioMode mode)
   
   if ((((uint8_t)(mode)) & (uint8_t)0x40) != (uint8_t)0x00) /* Pull-Up or Push-Pull */
   {
-      BspPinMap[pin].port->CR1 |= (uint8_t)pin;
+      BspPinMap[pin].port->CR1 |= (uint8_t)BspPinMap[pin].pin;
   } 
   else /* Float or Open-Drain */
   {
-      BspPinMap[pin].port->CR1 &= (uint8_t)(~pin);
+      BspPinMap[pin].port->CR1 &= (uint8_t)(~BspPinMap[pin].pin);
   }
   
   /*-----------------------------------------------------*/
@@ -64,11 +64,11 @@ void gpioPinInit(BspPin pin, GpioMode mode)
   
   if ((((uint8_t)(mode)) & (uint8_t)0x20) != (uint8_t)0x00) /* Interrupt or Slow slope */
   {
-      BspPinMap[pin].port->CR2 |= (uint8_t)pin;
+      BspPinMap[pin].port->CR2 |= (uint8_t)BspPinMap[pin].pin;
   } 
   else /* No external interrupt or No slope control */
   {
-      BspPinMap[pin].port->CR2 &= (uint8_t)(~pin);
+      BspPinMap[pin].port->CR2 &= (uint8_t)(~BspPinMap[pin].pin);
   }
 }
 
@@ -106,9 +106,9 @@ PORT_C
 
 PORT_D
 
-#define ENCODER_CHANNEL_1 GPIOD_PIN_1
+#define ENCODER_CHANNEL_1 GPIOA_PIN_1
 
-#define ENCODER_CHANNEL_2 GPIOD_PIN_2
+#define ENCODER_CHANNEL_2 GPIOA_PIN_2
 
 #define GREEN_LED_PIN GPIOD_PIN_3
 
