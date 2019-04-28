@@ -188,7 +188,8 @@
                 </option>
                 <option>
                     <name>CCDefines</name>
-                    <state></state>
+                    <state>DEBUG</state>
+                    <state>STM8S103</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
