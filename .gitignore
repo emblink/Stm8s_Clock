@@ -11,6 +11,7 @@ Debug/
 *.dep
 *.ioc8
 *.log
+STM8test.dep
 
 # IAR Settings  
 **/settings/*.crun  
