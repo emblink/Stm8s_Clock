@@ -171,6 +171,7 @@ bool i2c_read(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t rxBuff[], u
 	I2C->CR2 &= ~I2C_CR2_ACK; // disable ACK
 	I2C->SR1; // clear ADDR bit
 	I2C->SR3;
+    while (I2C->SR1 & I2C_SR1_ADDR);
 	I2C->CR2 |= I2C_CR2_STOP;
 	while(!(I2C->SR1 & I2C_SR1_RXNE));
 	rxBuff[0] = I2C->DR;
