@@ -45,15 +45,15 @@ bool ds1307_set_seconds(uint8_t seconds)
 uint8_t ds1307_get_seconds(void)
 {
     uint8_t seconds = 0x00;
-    i2c_read(DS1307_ADDRESS, DS1307_SECONDS_REGISTER, &seconds, sizeof(seconds));
-    return (((seconds & 0x70) >> 4) * 10 + (seconds & 0x0F));
+    if (i2c_read(DS1307_ADDRESS, DS1307_SECONDS_REGISTER, &seconds, sizeof(seconds)))
+        return (((seconds & 0x70) >> 4) * 10 + (seconds & 0x0F));
+    return 0;
 }
 
 bool ds1307_set_minutes(uint8_t minutes)
 {
-    if (minutes > 59) {
+    if (minutes > 59)
         return FALSE;
-    }
     uint8_t units = minutes % 10;
     uint8_t tens = (minutes / 10) & 0x07;
     minutes = units | (tens << 4);
@@ -63,15 +63,15 @@ bool ds1307_set_minutes(uint8_t minutes)
 uint8_t ds1307_get_minutes(void)
 {
     uint8_t minutes = 0x00;
-    i2c_read(DS1307_ADDRESS, DS1307_MINUTES_REGISTER, &minutes, sizeof(minutes));
-    return (((minutes & 0x70) >> 4) * 10 + (minutes & 0x0F));
+    if (i2c_read(DS1307_ADDRESS, DS1307_MINUTES_REGISTER, &minutes, sizeof(minutes)))
+        return (((minutes & 0x70) >> 4) * 10 + (minutes & 0x0F));
+    return 0;
 }
 
 bool ds1307_set_hours(uint8_t hours)
 {
-    if (hours > 23) {
+    if (hours > 23)
         return FALSE;
-    }
     uint8_t units = hours % 10;
     uint8_t tens = (hours / 10) & 0x03;
     hours = units | (tens << 4);
@@ -81,24 +81,23 @@ bool ds1307_set_hours(uint8_t hours)
 uint8_t ds1307_get_hours(void)
 {
     uint8_t hours = 0x00;
-    i2c_read(DS1307_ADDRESS, DS1307_HOURS_REGISTER, &hours, sizeof(hours));
-    return (((hours & 0x30) >> 4) * 10 + (hours & 0x0F));
+    if (i2c_read(DS1307_ADDRESS, DS1307_HOURS_REGISTER, &hours, sizeof(hours)))
+        return (((hours & 0x30) >> 4) * 10 + (hours & 0x0F));
+    return 0;
 }
 
 bool ds1307_set_day(uint8_t day)
 {
-    if (day < 1 || day > 7) {
+    if (day < 1 || day > 7)
         return FALSE;
-    }
     day &= 0x07;
     return i2c_send(DS1307_ADDRESS, DS1307_DAY_REGISTER, &day, sizeof(day));
 }
 
 bool ds1307_set_date(uint8_t date)
 {
-    if (date > 31) {
+    if (date > 31)
         return FALSE;
-    }
     uint8_t units = date % 10;
     uint8_t tens = (date / 10) & 0x30;
     date = 0x00;
