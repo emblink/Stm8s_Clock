@@ -1,6 +1,5 @@
 #include "stm8s.h"
-#include "stm8s_gpio.h"
-#include "stm8s_spi.h"
+#include "spi.h"
 #include "main.h"
 #include "max7219.h"
 
@@ -28,13 +27,7 @@ static bool isMax7219Inited = FALSE;
 static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register reg, uint8_t arg);
 static void max7219SendData(const uint8_t dataBuff[], uint16_t size);
 
-static inline void spiPushByte(uint8_t byte)
-{
-	SPI->DR = byte;
-    while (!(SPI->SR & SPI_FLAG_TXE));
-}
-
-static inline void max7219PushData(void)
+static void max7219PushData(void)
 {
 	GPIOC->ODR &= ~SPI_CS_PIN;
 }

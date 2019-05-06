@@ -4,11 +4,11 @@
 #include "stm8s_tim1.h"
 #include "stm8s_tim2.h"
 #include "stm8s_clk.h"
-#include "stm8s_spi.h"
 #include "font.h"
 #include "max7219.h"
 #include "DS1307.h"
 #include "i2c.h"
+#include "spi.h"
 
 typedef enum ClockMode {
 	CLOCK_MODE_HOURS_MINUTES,
@@ -89,12 +89,8 @@ int main( void )
 	GPIO_Init(GPIOC, SPI_MOSI_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
 	GPIO_Init(GPIOC, SPI_SCK_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
 	
-	SPI_DeInit();
-	SPI_Init(SPI_FIRSTBIT_MSB, SPI_BAUDRATEPRESCALER_2, SPI_MODE_MASTER,
-		   	 SPI_CLOCKPOLARITY_LOW, SPI_CLOCKPHASE_1EDGE,
-			 SPI_DATADIRECTION_1LINE_TX, SPI_NSS_SOFT, 0x07);
-	SPI_CalculateCRCCmd(DISABLE);
-	SPI_Cmd(ENABLE);
+    spiInit();
+	spiEnable();
 	
 	/* Init I2c */
 	i2cInit();
