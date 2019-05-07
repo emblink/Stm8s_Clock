@@ -9,6 +9,7 @@
 #include "DS1307.h"
 #include "i2c.h"
 #include "spi.h"
+#include "iwdg.h"
 
 typedef enum ClockMode {
 	CLOCK_MODE_HOURS_MINUTES,
@@ -109,6 +110,9 @@ int main( void )
 	TIM2_SelectOnePulseMode(TIM2_OPMODE_SINGLE);
 	TIM2_ITConfig(TIM2_IT_UPDATE, ENABLE);
 
+    /* Independent WatchDog Timer Innit */
+    iwdgInit();
+    
 	/* Max7219 Init */
 	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
 	max7219Init(max7219Buff, sizeof(max7219Buff));
@@ -134,6 +138,7 @@ int main( void )
 				break;
 			}
 		}
+        iwdgFeed();
 		//wfi();
 	}
 }
