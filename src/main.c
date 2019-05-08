@@ -111,7 +111,7 @@ int main( void )
 	TIM2_ITConfig(TIM2_IT_UPDATE, ENABLE);
 
     /* Independent WatchDog Timer Innit */
-    //iwdgInit();
+    iwdgInit();
     
 	/* Max7219 Init */
 	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
