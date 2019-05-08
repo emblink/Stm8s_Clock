@@ -1,23 +1,15 @@
 #include "main.h"
 #include "stm8s.h"
-#include "stm8s_gpio.h"
 #include "stm8s_exti.h"
 #include "stm8s_tim1.h"
 #include "stm8s_tim2.h"
 #include "stm8s_clk.h"
-#include "stm8s_spi.h"
-#include "stm8s_i2c.h"
 #include "font.h"
 #include "max7219.h"
 #include "DS1307.h"
 #include "i2c.h"
-
-//#define RELEASE
-#ifndef RELEASE
-	#define DEBUG
-#endif // RELEASE
-
-#define NULL	0
+#include "spi.h"
+#include "iwdg.h"
 
 typedef enum ClockMode {
 	CLOCK_MODE_HOURS_MINUTES,
@@ -56,9 +48,6 @@ static void processSettingsMode(void);
 static void highlightSettingsValue(void);
 static uint16_t getCurrentTick(void);
 static void updateTime(void);
-#ifdef DEBUG
-static void delayMs(uint16_t delay);
-#endif // DEBUG
 static void swichClockMode(void);
 
 static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
@@ -101,12 +90,8 @@ int main( void )
 	GPIO_Init(GPIOC, SPI_MOSI_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
 	GPIO_Init(GPIOC, SPI_SCK_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
 	
-	SPI_DeInit();
-	SPI_Init(SPI_FIRSTBIT_MSB, SPI_BAUDRATEPRESCALER_2, SPI_MODE_MASTER,
-		   	 SPI_CLOCKPOLARITY_LOW, SPI_CLOCKPHASE_1EDGE,
-			 SPI_DATADIRECTION_1LINE_TX, SPI_NSS_SOFT, 0x07);
-	SPI_CalculateCRCCmd(DISABLE);
-	SPI_Cmd(ENABLE);
+    spiInit();
+	spiEnable();
 	
 	/* Init I2c */
 	i2cInit();
@@ -125,6 +110,9 @@ int main( void )
 	TIM2_SelectOnePulseMode(TIM2_OPMODE_SINGLE);
 	TIM2_ITConfig(TIM2_IT_UPDATE, ENABLE);
 
+    /* Independent WatchDog Timer Innit */
+    iwdgInit();
+    
 	/* Max7219 Init */
 	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
 	max7219Init(max7219Buff, sizeof(max7219Buff));
@@ -140,7 +128,11 @@ int main( void )
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
 			case CLOCK_MODE_MINUTES_SECONDS:
+                GPIO_WriteHigh(GPIOC, RED_LED_PIN);
+                GPIO_WriteHigh(GPIOD, GREEN_LED_PIN);
 				updateTime();
+                GPIO_WriteLow(GPIOC, RED_LED_PIN);
+                GPIO_WriteLow(GPIOD, GREEN_LED_PIN);
 				processClockMode();
 				break;
 			case CLOCK_MODE_SETTINGS:
@@ -150,6 +142,7 @@ int main( void )
 				break;
 			}
 		}
+        iwdgFeed();
 		//wfi();
 	}
 }
@@ -186,7 +179,6 @@ static void processSettingsMode(void) {
 	highlightSettingsValue();
 
 	if (settingsHoldEvent) {
-		settingsHoldEvent = FALSE;
 		switch(settingsMode) {	
 		case SETTINGS_MODE_APPLY:
 			ds1307_set_hours(rtc.time.hours);
@@ -205,11 +197,13 @@ static void processSettingsMode(void) {
 		}
 	}
 	
-	if (!settingsInited) {
+	if (settingsHoldEvent) {
 		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // disable encoder Interrupts
 		encoderCounter = NULL;
 		clockMode = CLOCK_MODE_HOURS_MINUTES;
 		panelProcess = TRUE;
+        settingsHoldEvent = FALSE;
+        settingsInited = FALSE;
 	}
 }
 
@@ -323,14 +317,6 @@ static uint16_t getCurrentTick(void)
   return tick;
 }
 
-#ifdef DEBUG
-static void delayMs(uint16_t delay)
-{
-	while(delay--)
-		for (uint16_t i = 0; i < 2000; i++);
-}
-#endif // DEBUG
-
 /* Encoder Interrupt Handler */
 /**
   * @brief External Interrupt PORTA Interrupt routine.
@@ -340,8 +326,6 @@ static void delayMs(uint16_t delay)
 static volatile uint16_t encoderLastTick = 0;
 static uint8_t encoderChannelAState = 0;
 static uint8_t encoderChannelBState = 0;
-static uint8_t encoderChannelAPrevState = 0;
-static uint8_t encoderChannelBPrevState = 0;
 #define ENCODER_DEBOUNCE 10 // add capasitors 
 	
 INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
@@ -354,12 +338,6 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 	if (currentTick - encoderLastTick > ENCODER_DEBOUNCE) {
 		static uint16_t ISR_COUNTER = 0;
 		ISR_COUNTER++;
-#ifdef DEBUG
-	  	static BitStatus channelAState = RESET;
-		static BitStatus channelBState = RESET;
-	  	channelAState = encoderChannelAState;
-		channelBState = encoderChannelBState;
-#endif // DEBUG
 		if (encoderChannelAState != encoderChannelBState) {
 			if (encoderCounter) {
 				*encoderCounter += 1;
@@ -375,12 +353,9 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 				}
 			}
 		}
-		encoderChannelAPrevState = encoderChannelAState;
-		encoderChannelBPrevState = encoderChannelBState;
 	}
 	encoderLastTick = currentTick;
 }
-
 
 /* Encoder Button IRQ handler */
 /**
@@ -391,30 +366,15 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 #define DEBOUNCE_TIME 10
 static uint16_t lastTick = 0;
 
-#ifdef DEBUG
-static volatile uint8_t interruptEnterCount = 0;
-static volatile uint8_t pressed = 0;
-static volatile uint8_t released = 0;
-#endif // DEBUG
-
 INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 {
-	#ifdef DEBUG
-	interruptEnterCount++;
-	#endif // DEBUG
 	static bool buttonState = TRUE;
 	if (getCurrentTick() - lastTick > DEBOUNCE_TIME) {
 		if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN) && buttonState) {
 			buttonState = FALSE;
-			#ifdef DEBUG
-			pressed++;
-			#endif // DEBUG
 			TIM2_Cmd(ENABLE);
 		} else {
 			buttonState = TRUE;
-			#ifdef DEBUG
-			released++;
-			#endif // DEBUG
 			TIM2_Cmd(DISABLE);
 			if (buttonHoldEvent) {
 				buttonHoldEvent = FALSE;
@@ -455,38 +415,7 @@ INTERRUPT_HANDLER(TIM2_UPD_OVF_BRK_IRQHandler, 13)
 	GPIO_WriteReverse(GPIOC, RED_LED_PIN);
 }
 
-/* PINMAP
-
-PORT_C
-
-#define RED_LED_PIN GPIOC_PIN_3
-
-#define ENCODER_BUTTON_PIN GPIOC_PIN_4 // make pull up
-
-#define SPI_SCK_PIN GPIOC_PIN_5
-
-#define SPI_MOSI_PIN GPIOC_PIN_6
-
-#define SPI_CS_PIN GPIOC_PIN_7
-
-PORT_D
-
-#define ENCODER_CHANNEL_1 GPIOD_PIN_1
-
-#define ENCODER_CHANNEL_2 GPIOD_PIN_2
-
-#define GREEN_LED_PIN GPIOD_PIN_3
-
-PORT_B
-
-#define I2C_SCL_PIN GPIOB_PIN_4
-
-#define I2C_SDA_PIN GPIOB_PIN_5
-
-*/
-
 #ifdef USE_FULL_ASSERT
-
 /**
   * @brief  Reports the name of the source file and the source line number
   *   where the assert_param error has occurred.

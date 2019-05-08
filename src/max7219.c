@@ -1,6 +1,5 @@
 #include "stm8s.h"
-#include "stm8s_gpio.h"
-#include "stm8s_spi.h"
+#include "spi.h"
 #include "main.h"
 #include "max7219.h"
 
@@ -28,13 +27,7 @@ static bool isMax7219Inited = FALSE;
 static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register reg, uint8_t arg);
 static void max7219SendData(const uint8_t dataBuff[], uint16_t size);
 
-static inline void spiPushByte(uint8_t byte)
-{
-	SPI->DR = byte;
-    while (!(SPI->SR & SPI_FLAG_TXE));
-}
-
-static inline void max7219PushData(void)
+static void max7219PushData(void)
 {
 	GPIOC->ODR &= ~SPI_CS_PIN;
 }
@@ -46,12 +39,12 @@ static inline void max7219LatchData(void)
 
 bool max7219Init(uint8_t buff[], uint16_t buffSize)
 {
-	if (buff == NULL || buffSize < MAX7219_BUFF_SIZE)
-		return FALSE;
-	
-	dataBuff = buff;
-	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_SHUTDOWN_REG, MAX7219_STATE_ENABLE); // Turn On. Normal Operation
-	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+//	if (buff == NULL || buffSize < MAX7219_BUFF_SIZE)
+//		return FALSE;
+	if (dataBuff == NULL)
+        dataBuff = buff;
+    max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_SHUTDOWN_REG, MAX7219_STATE_ENABLE); // Turn On. Normal Operation
+    max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
 	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_INTENSITY_REG, MAX7219_INTENSITY_LEVEL_DEFAULT);
 	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
 	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_DISPLAY_TEST_REG, MAX7219_TEST_DISABLE); // Display-Test off.
@@ -60,6 +53,8 @@ bool max7219Init(uint8_t buff[], uint16_t buffSize)
 	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
 	max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_DECODE_MODE_REG, 0x00); // No decode mode.
 	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
+    max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_SHUTDOWN_REG, MAX7219_STATE_ENABLE); // Turn On. Normal Operation
+    max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
 	return isMax7219Inited = TRUE;
 }
 
@@ -96,6 +91,7 @@ void max7219SendSymbol(Max7219Number max7219Number, const uint8_t symbol[FONT_SY
 {
 	if (!isMax7219Inited)
 		return;
+    max7219Init(NULL, NULL);
 	for (Max7219Register reg = MAX7219_ROW_1_REG; reg <= MAX7219_ROW_8_REG; reg++) {
 		max7219FillCommandBuff(max7219Number, reg, symbol[reg - 1]);
 		max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
