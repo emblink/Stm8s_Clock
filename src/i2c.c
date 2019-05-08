@@ -13,7 +13,7 @@ void i2cInit(void)
     I2C->OARL |= STM8S_I2C_ADDRESS;
     I2C->OARL &= ~STM8S_I2C_ADDRESS;
     I2C->OARH &= ~I2C_OARH_ADDMODE; // 7-bit slave address (10-bit address not acknowledged)
-    I2C->OARH |= I2C_OARH_ADDCONF; // This bit must set by software (must always be written as ‘1’).
+    I2C->OARH |= I2C_OARH_ADDCONF; // This bit must set by software (must always be written as ï¿½1ï¿½).
     I2C->CCRL |= 0x50;
     I2C->CCRH &= ~I2C_CCRH_FS; // 0: Standard mode I2C
     I2C->CCRH &= ~I2C_CCRH_DUTY; // 0: Fast mode tlow/thigh = 2
@@ -80,7 +80,7 @@ bool i2c_read(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t rxBuff[], u
 	I2C->CR2 &= ~I2C_CR2_ACK; // disable ACK
 	I2C->SR1; // clear ADDR bit
 	I2C->SR3;
-    while (I2C->SR1 & I2C_SR1_ADDR);
+  while (I2C->SR1 & I2C_SR1_ADDR);
 	I2C->CR2 |= I2C_CR2_STOP;
 	while(!(I2C->SR1 & I2C_SR1_RXNE));
 	rxBuff[0] = I2C->DR;
