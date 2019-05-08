@@ -1638,12 +1638,6 @@
             <name>$PROJ_DIR$\StdPeriph_lib\stm8s_gpio.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_i2c.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\StdPeriph_lib\stm8s_i2c.h</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\StdPeriph_lib\stm8s_it.c</name>
         </file>
         <file>
