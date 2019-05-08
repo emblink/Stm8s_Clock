@@ -13,7 +13,7 @@ void spiInit(void)
     SPI->CR1 &= ~SPI_CR1_BR; // SPI_BAUDRATEPRESCALER_2
     SPI->CR1 |= SPI_CR1_MSTR; // SPI_MODE_MASTER
     SPI->CR1 |= SPI_CR1_CPOL; // SCK to 1 when idle
-    SPI->CR1 |= SPI_CR1_CPHA; // SPI_CLOCKPHASE_2EDGE
+    SPI->CR1 |= SPI_CR1_CPHA; // SPI_CLOCKPHASE_2EDGE   // TODO: change config and observe display stability
 
     SPI->CR2 |= SPI_CR2_BDM; // 1-line bidirectional data mode selected
     SPI->CR2 |= SPI_CR2_BDOE; // Output enabled (transmit-only mode)
