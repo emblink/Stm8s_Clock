@@ -111,7 +111,7 @@ int main( void )
 	TIM2_ITConfig(TIM2_IT_UPDATE, ENABLE);
 
     /* Independent WatchDog Timer Innit */
-    iwdgInit();
+    //iwdgInit();
     
 	/* Max7219 Init */
 	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
@@ -128,7 +128,11 @@ int main( void )
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
 			case CLOCK_MODE_MINUTES_SECONDS:
+                GPIO_WriteHigh(GPIOC, RED_LED_PIN);
+                GPIO_WriteHigh(GPIOD, GREEN_LED_PIN);
 				updateTime();
+                GPIO_WriteLow(GPIOC, RED_LED_PIN);
+                GPIO_WriteLow(GPIOD, GREEN_LED_PIN);
 				processClockMode();
 				break;
 			case CLOCK_MODE_SETTINGS:
