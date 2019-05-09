@@ -49,6 +49,7 @@ static void highlightSettingsValue(void);
 static uint16_t getCurrentTick(void);
 static void updateTime(void);
 static void swichClockMode(void);
+static uint8_t getEncoderTimeDivider(void);
 
 static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
 static SettingsMode settingsMode = SETTINGS_MODE_HOURS;
@@ -61,6 +62,7 @@ static RealTimeClock rtc = {0};
 
 int main( void )
 {
+    // TODO: add startup delay, in order to get stable supply voltage ~50ms
 	/* Configure system clock */
 	CLK_HSICmd(ENABLE);
 	while (!CLK->ICKR & (1 << 1)); // wait untill clock became stable
@@ -317,6 +319,18 @@ static uint16_t getCurrentTick(void)
   return tick;
 }
 
+static uint8_t getEncoderTimeDivider(void)
+{
+    switch(settingsMode) {
+    case SETTINGS_MODE_HOURS:
+        return 24;
+    case SETTINGS_MODE_MINUTES:
+    case SETTINGS_MODE_SECONDS:
+        return 60;
+    default:
+        return 0;
+    }    
+}
 /* Encoder Interrupt Handler */
 /**
   * @brief External Interrupt PORTA Interrupt routine.
@@ -341,15 +355,15 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 		if (encoderChannelAState != encoderChannelBState) {
 			if (encoderCounter) {
 				*encoderCounter += 1;
-				*encoderCounter %= 60;
+				*encoderCounter %= getEncoderTimeDivider();
 			}
 		} else {
 			if (encoderCounter) {
 				if (*encoderCounter > 0) {
 					*encoderCounter -= 1;
-					*encoderCounter %= 60;
+					*encoderCounter %= getEncoderTimeDivider();
 				} else {
-					*encoderCounter = 59;
+					*encoderCounter = getEncoderTimeDivider() - 1;
 				}
 			}
 		}
