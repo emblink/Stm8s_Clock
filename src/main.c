@@ -10,6 +10,7 @@
 #include "i2c.h"
 #include "spi.h"
 #include "iwdg.h"
+#include "adc.h"
 
 typedef enum ClockMode {
 	CLOCK_MODE_HOURS_MINUTES,
@@ -118,7 +119,12 @@ int main( void )
 	/* Max7219 Init */
 	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
 	max7219Init(max7219Buff, sizeof(max7219Buff));
-	
+    
+    /* ADC init */
+	adcInit(5, NULL);
+    adcEnable();
+    //adcEnable();
+    
 	enableInterrupts();
 	
 	/* Start application timer */
