@@ -1,7 +1,6 @@
 #include "stm8s.h"
 #include "i2c.h"
 
-#define NULL 0
 #define STM8S_I2C_ADDRESS 0xFE
 
 void i2cInit(void)
@@ -19,16 +18,6 @@ void i2cInit(void)
     I2C->CCRH &= ~I2C_CCRH_DUTY; // 0: Fast mode tlow/thigh = 2
     I2C->TRISER |= 0x2F; // 17 for I2C_FREQR register = 16, (1000 ns / 62.5 ns = 16 + 1)
     I2C->CR1 |= I2C_CR1_PE; // Peripheral enable
-
-/*
-  	I2C_DeInit();
-	I2C_Init(I2C_MAX_FAST_FREQ, STM8S_I2C_ADDRESS, I2C_DUTYCYCLE_2, I2C_ACK_CURR,
-			 I2C_ADDMODE_7BIT, I2C_MAX_INPUT_FREQ);
-	I2C->ITR &= (~I2C_IT_ERR | ~I2C_IT_EVT | ~I2C_IT_BUF); // disable interrupts
-	I2C_Cmd(ENABLE);
-*/
-	/* TODO: 21.4.2 I2C master mode - read 293 page of the datasheet
-	and add i2c functionality for DS1307 */
 }
 
 bool i2c_send(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t txBuff[], uint16_t txSize)
@@ -80,7 +69,7 @@ bool i2c_read(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t rxBuff[], u
 	I2C->CR2 &= ~I2C_CR2_ACK; // disable ACK
 	I2C->SR1; // clear ADDR bit
 	I2C->SR3;
-  while (I2C->SR1 & I2C_SR1_ADDR);
+    while (I2C->SR1 & I2C_SR1_ADDR);
 	I2C->CR2 |= I2C_CR2_STOP;
 	while(!(I2C->SR1 & I2C_SR1_RXNE));
 	rxBuff[0] = I2C->DR;

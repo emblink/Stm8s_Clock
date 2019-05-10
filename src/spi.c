@@ -1,4 +1,5 @@
 #include "stm8s.h"
+#include "spi.h"
 
 void spiInit(void)
 {

@@ -3,8 +3,6 @@
 #include "main.h"
 #include "max7219.h"
 
-#define NULL 0
-
 typedef enum Max7219Register {
     MAX7219_NOOP_REG = 0x00,
     MAX7219_ROW_1_REG = 0x01,
@@ -91,7 +89,7 @@ void max7219SendSymbol(Max7219Number max7219Number, const uint8_t symbol[FONT_SY
 {
 	if (!isMax7219Inited)
 		return;
-    max7219Init(NULL, NULL);
+    //max7219Init(NULL, NULL);
 	for (Max7219Register reg = MAX7219_ROW_1_REG; reg <= MAX7219_ROW_8_REG; reg++) {
 		max7219FillCommandBuff(max7219Number, reg, symbol[reg - 1]);
 		max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
@@ -127,39 +125,3 @@ static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register 
 		}
 	}
 }
-
-
-/*
-
-function transform array of columns into array of rows, that can be sent to max7219
-static void trans_panel(uint8_t *array, uint8_t *fill_array)
-{
-	for (uint8_t row = 0; row < 8; row++) {
-		uint8_t bit = 1 << row;
-		for (int8_t i = 7, bit_indx = 0; i >= 0; i--, bit_indx++) {
-			uint8_t data = 0x00;
-			data = array[i] & bit; // read bit
-			data >>= row; // move to 0 position
-			data <<= bit_indx; // move to proper position
-			if (!data) { // == 0x00
-				uint8_t data_and_mask = ~(1 << bit_indx); // create mask
-				fill_array[row] &= (data | data_and_mask); // write 0 in bit
-			}
-			else
-				fill_array[row] |= (data); // write 1 in bit
-		}
-    }
-}
-
-
-void update_screen(uint8_t *screenbuff)
-{
-	uint8_t buff_to_send[LED_NUM * 8];
-	for (uint8_t n = 0; n < LED_NUM; n++) {
-		uint8_t indx = n << 3;
-		trans_panel(&screenbuff[indx], &buff_to_send[indx]);
-		max7219_send_char_to(n, &buff_to_send[indx]);
-	}
-}
-
-*/

@@ -2,7 +2,6 @@
 #define __MAIN_H
 #include "stm8s_gpio.h"
 
-#define NULL 0
 #define RED_LED_PIN             GPIO_PIN_3
 #define BUTTON_PIN              GPIO_PIN_4
 #define GREEN_LED_PIN           GPIO_PIN_3
