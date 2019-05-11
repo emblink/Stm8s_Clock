@@ -16,7 +16,7 @@ typedef enum Max7219Number {
 #define MAX7219_ROWS_NUMBER					8
 #define MAX7219_BUFF_SIZE					(MAX7219_COMMAND_BUFF_SIZE * MAX7219_ROWS_NUMBER)
 #define MAX7219_INTENSITY_LEVEL_DEFAULT 	MAX7219_INTENSITY_LEVEL_0
-#define FONT_SYMBOL_SIZE_IN_BYTES			8	// TODO: ADD FONT ??
+#define FONT_SYMBOL_SIZE_IN_BYTES			8
 
 typedef enum Max7219Command {
 	MAX7219_SET_STATE,
@@ -47,7 +47,7 @@ typedef enum Max7219CommandArgument {
 	MAX7219_INTENSITY_LEVEL_15 = 0x0F,
 } Max7219CommandArgument;
 
-bool max7219Init(uint8_t dataBuff[MAX7219_BUFF_SIZE], uint16_t dataBuffSize);
+void max7219Init(void); // sends init settings to all max7219 
 bool max7219SendCommand(Max7219Number max7219Number, Max7219Command cmd, Max7219CommandArgument arg);
 void max7219SendSymbol(Max7219Number max7219Number, const uint8_t symbol[FONT_SYMBOL_SIZE_IN_BYTES]);
 

@@ -117,8 +117,7 @@ int main( void )
     //iwdgInit();
     
 	/* Max7219 Init */
-	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
-	max7219Init(max7219Buff, sizeof(max7219Buff));
+	max7219Init();
     
     /* ADC init */
 	adcInit(5, NULL);
@@ -171,8 +170,8 @@ static void processClockMode(void)
 	panelProcess = FALSE;
 }
 
-static void processSettingsMode(void) {
-	
+static void processSettingsMode(void) 
+{	
 	static bool settingsInited = FALSE;
 	
 	if (!settingsInited) {
