@@ -1,6 +1,5 @@
 #include "stm8s.h"
 #include "spi.h"
-#include "main.h"
 #include "max7219.h"
 
 typedef enum Max7219Register {
@@ -24,16 +23,6 @@ static uint8_t dataBuff[MAX7219_BUFF_SIZE];
 static void max7219FillCommandBuff(Max7219Number max7219Number, Max7219Register reg, uint8_t arg);
 static void max7219SendSettings(void);
 static void max7219SendData(const uint8_t dataBuff[], uint16_t size);
-
-static void max7219PushData(void)
-{
-	GPIOC->ODR &= ~SPI_CS_PIN;
-}
-
-static inline void max7219LatchData(void)
-{
-	GPIOC->ODR |= SPI_CS_PIN;
-}
 
 void max7219Init(void)
 {
@@ -82,10 +71,7 @@ void max7219SendSymbol(Max7219Number max7219Number, const uint8_t symbol[FONT_SY
 
 static void max7219SendData(const uint8_t dataBuff[], uint16_t size)
 {
-	max7219PushData();
-	for (uint16_t i = 0; i < size; i++)
-		spiPushByte(dataBuff[i]);
-	max7219LatchData();
+    spiSendData(dataBuff, size);
 }
 
 static void max7219SendSettings(void)
