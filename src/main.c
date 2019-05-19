@@ -10,6 +10,7 @@
 #include "i2c.h"
 #include "spi.h"
 #include "iwdg.h"
+#include "adc.h"
 
 typedef enum ClockMode {
 	CLOCK_MODE_HOURS_MINUTES,
@@ -47,9 +48,13 @@ static void processClockMode(void);
 static void processSettingsMode(void);
 static void highlightSettingsValue(void);
 static uint16_t getCurrentTick(void);
-static void updateTime(void);
+static bool updateTime(void);
 static void swichClockMode(void);
+static uint8_t getEncoderTimeDivider(void);
+static void onAcdMeasurmentCallback(void);
+static void processAdcMeasurmetns(void);
 
+static const uint16_t brightnessAdjustPeriod = 5000;
 static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
 static SettingsMode settingsMode = SETTINGS_MODE_HOURS;
 static volatile bool panelProcess = TRUE;
@@ -58,9 +63,12 @@ static volatile bool settingsHoldEvent = FALSE;
 static uint8_t *encoderCounter = NULL;
 static volatile uint16_t timeTick = 0;
 static RealTimeClock rtc = {0};
+static uint16_t adcBuffer[ADC_BUFFER_SIZE] = {0};
+static bool processAdc = FALSE;
 
 int main( void )
 {
+    // TODO: add startup delay, in order to get stable supply voltage ~50ms
 	/* Configure system clock */
 	CLK_HSICmd(ENABLE);
 	while (!CLK->ICKR & (1 << 1)); // wait untill clock became stable
@@ -111,29 +119,38 @@ int main( void )
 	TIM2_ITConfig(TIM2_IT_UPDATE, ENABLE);
 
     /* Independent WatchDog Timer Innit */
-    iwdgInit();
+    //iwdgInit();
     
 	/* Max7219 Init */
-	static uint8_t max7219Buff[MAX7219_BUFF_SIZE];
-	max7219Init(max7219Buff, sizeof(max7219Buff));
-	
+	max7219Init();
+    
+    /* ADC init */
+	adcInit(5, onAcdMeasurmentCallback);
+    
 	enableInterrupts();
 	
 	/* Start application timer */
 	TIM1_Cmd(ENABLE);
+    bool succsses = FALSE;
 	
 	while(1)
 	{
-		if (!(timeTick % modeUpdatePeriod[clockMode]) || panelProcess) {
+		if (!(getCurrentTick() % modeUpdatePeriod[clockMode]) || panelProcess) {
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
 			case CLOCK_MODE_MINUTES_SECONDS:
                 GPIO_WriteHigh(GPIOC, RED_LED_PIN);
                 GPIO_WriteHigh(GPIOD, GREEN_LED_PIN);
-				updateTime();
+				succsses = updateTime();
+                if (succsses == FALSE) {
+                    i2cDeInit();
+                    i2cInit();
+                    panelProcess = TRUE;
+                    continue;
+                }
                 GPIO_WriteLow(GPIOC, RED_LED_PIN);
                 GPIO_WriteLow(GPIOD, GREEN_LED_PIN);
-				processClockMode();
+                processClockMode();
 				break;
 			case CLOCK_MODE_SETTINGS:
 				processSettingsMode();
@@ -142,6 +159,11 @@ int main( void )
 				break;
 			}
 		}
+        // TODO: Use timer 2 or 4 as SysTick, use timer 1 as TRGO for ADC, configure for periodic 1 minute measurments
+        if (timeTick % brightnessAdjustPeriod == 0)
+            adcStart();
+        if (processAdc)
+            processAdcMeasurmetns();
         iwdgFeed();
 		//wfi();
 	}
@@ -163,8 +185,8 @@ static void processClockMode(void)
 	panelProcess = FALSE;
 }
 
-static void processSettingsMode(void) {
-	
+static void processSettingsMode(void) 
+{	
 	static bool settingsInited = FALSE;
 	
 	if (!settingsInited) {
@@ -186,7 +208,7 @@ static void processSettingsMode(void) {
 			ds1307_set_seconds(rtc.time.seconds);
 			break;
 		case SETTINGS_MODE_DISCARD:
-			updateTime();
+			//updateTime();
 			break;
 		case SETTINGS_MODE_RESET:
 			ds1307_reset();
@@ -301,11 +323,15 @@ static void highlightSettingsValue()
 	blink ^= TRUE;
 }
 
-static void updateTime(void)
+static bool updateTime(void)
 {
-	rtc.time.hours = ds1307_get_hours();
-	rtc.time.minutes = ds1307_get_minutes();
-	rtc.time.seconds = ds1307_get_seconds();
+    bool status = TRUE;
+    status = ds1307_get_hours(&rtc.time.hours);
+    if (status)
+        status = ds1307_get_minutes(&rtc.time.minutes);
+    if (status)
+        status = ds1307_get_seconds(&rtc.time.seconds);
+    return status;
 }
 
 static uint16_t getCurrentTick(void)
@@ -315,6 +341,43 @@ static uint16_t getCurrentTick(void)
   tick = timeTick;  
   enableInterrupts();
   return tick;
+}
+
+static uint8_t getEncoderTimeDivider(void)
+{
+    switch(settingsMode) {
+    case SETTINGS_MODE_HOURS:
+        return 24;
+    case SETTINGS_MODE_MINUTES:
+    case SETTINGS_MODE_SECONDS:
+        return 60;
+    default:
+        return 0;
+    }    
+}
+
+static void processAdcMeasurmetns(void)
+{
+    uint16_t value = 0;
+    for (uint8_t i = 0; i < ADC_BUFFER_SIZE; i++)
+        value += adcBuffer[i];
+    value /= ADC_BUFFER_SIZE;
+    if (value > 900)
+        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_15);
+    else if (value > 700)
+        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_10);
+    else if (value > 500)
+        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_5);
+    else if (value > 200)
+        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_0);
+    processAdc = FALSE;
+}
+
+static void onAcdMeasurmentCallback(void)
+{
+    adcStop();
+    adcGetBufferedData(adcBuffer);
+    processAdc = TRUE;
 }
 
 /* Encoder Interrupt Handler */
@@ -341,15 +404,15 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 		if (encoderChannelAState != encoderChannelBState) {
 			if (encoderCounter) {
 				*encoderCounter += 1;
-				*encoderCounter %= 60;
+				*encoderCounter %= getEncoderTimeDivider();
 			}
 		} else {
 			if (encoderCounter) {
 				if (*encoderCounter > 0) {
 					*encoderCounter -= 1;
-					*encoderCounter %= 60;
+					*encoderCounter %= getEncoderTimeDivider();
 				} else {
-					*encoderCounter = 59;
+					*encoderCounter = getEncoderTimeDivider() - 1;
 				}
 			}
 		}
@@ -369,7 +432,8 @@ static uint16_t lastTick = 0;
 INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 {
 	static bool buttonState = TRUE;
-	if (getCurrentTick() - lastTick > DEBOUNCE_TIME) {
+    uint16_t currentTick = getCurrentTick();
+	if (currentTick - lastTick > DEBOUNCE_TIME) {
 		if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN) && buttonState) {
 			buttonState = FALSE;
 			TIM2_Cmd(ENABLE);
@@ -383,7 +447,7 @@ INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 			}
 		}
 	}
-	lastTick = getCurrentTick();
+	lastTick = currentTick;
 }
 
 /* Application Timer Interrupt Handler */

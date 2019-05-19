@@ -1,4 +1,7 @@
 #include "stm8s.h"
+#include "spi.h"
+
+static void spiPushByte(uint8_t byte);
 
 void spiInit(void)
 {
@@ -11,9 +14,10 @@ void spiInit(void)
     /* Frame Format, BaudRate, Clock Polarity and Phase configuration */
     SPI->CR1 &= ~SPI_CR1_LSBFIRST; // SPI_FIRSTBIT_MSB
     SPI->CR1 &= ~SPI_CR1_BR; // SPI_BAUDRATEPRESCALER_2
+    //SPI->CR1 |= SPI_CR1_BR; // SPI_BAUDRATEPRESCALER_256 
     SPI->CR1 |= SPI_CR1_MSTR; // SPI_MODE_MASTER
-    SPI->CR1 |= SPI_CR1_CPOL; // SCK to 1 when idle
-    SPI->CR1 |= SPI_CR1_CPHA; // SPI_CLOCKPHASE_2EDGE
+    SPI->CR1 &= ~SPI_CR1_CPOL; // SCK to 0 when idle
+    SPI->CR1 &= ~SPI_CR1_CPHA; // 0: The first clock transition is the first data capture edge   // TODO: change config and observe display stability
 
     SPI->CR2 |= SPI_CR2_BDM; // 1-line bidirectional data mode selected
     SPI->CR2 |= SPI_CR2_BDOE; // Output enabled (transmit-only mode)
@@ -34,10 +38,10 @@ void spiDisable(void)
     SPI->CR1 &= ~SPI_CR1_SPE; /* Disable the SPI peripheral*/
 }
 
-void spiPushByte(uint8_t byte)
+static void spiPushByte(uint8_t byte)
 {
-    while ((SPI->SR &= SPI_SR_TXE) == RESET);
-        SPI->DR = byte;
+    while ((SPI->SR & SPI_SR_TXE) == RESET) {} // TXE flag == 1 when tx buffer empty, and next data byte can be loaded.
+    SPI->DR = byte;
 }
 
 void spiSendData(const uint8_t data[], uint16_t len)
@@ -45,5 +49,6 @@ void spiSendData(const uint8_t data[], uint16_t len)
     GPIOC->ODR &= ~(1 << 7); // #define SPI_CS_PIN GPIO_PIN_7
     for (uint16_t i = 0; i < len; i++)
         spiPushByte(data[i]);
+    while (SPI->SR & SPI_SR_BSY) {} // wait for last byte transfer complition
     GPIOC->ODR |= 1 << 7;
 }

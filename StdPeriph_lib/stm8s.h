@@ -247,6 +247,8 @@ typedef enum {ERROR = 0, SUCCESS = !ERROR} ErrorStatus;
 #define S32_MAX    (2147483647)
 #define S32_MIN    (-2147483648uL)
 
+#define NULL        0x00
+
 /**
   * @}
   */
