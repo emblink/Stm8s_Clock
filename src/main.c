@@ -48,7 +48,7 @@ static void processClockMode(void);
 static void processSettingsMode(void);
 static void highlightSettingsValue(void);
 static uint16_t getCurrentTick(void);
-static void updateTime(void);
+static bool updateTime(void);
 static void swichClockMode(void);
 static uint8_t getEncoderTimeDivider(void);
 static void onAcdMeasurmentCallback(void);
@@ -131,6 +131,7 @@ int main( void )
 	
 	/* Start application timer */
 	TIM1_Cmd(ENABLE);
+    bool succsses = FALSE;
 	
 	while(1)
 	{
@@ -140,10 +141,16 @@ int main( void )
 			case CLOCK_MODE_MINUTES_SECONDS:
                 GPIO_WriteHigh(GPIOC, RED_LED_PIN);
                 GPIO_WriteHigh(GPIOD, GREEN_LED_PIN);
-				updateTime();
+				succsses = updateTime();
+                if (succsses == FALSE) {
+                    i2cDeInit();
+                    i2cInit();
+                    panelProcess = TRUE;
+                    continue;
+                }
                 GPIO_WriteLow(GPIOC, RED_LED_PIN);
                 GPIO_WriteLow(GPIOD, GREEN_LED_PIN);
-				processClockMode();
+                processClockMode();
 				break;
 			case CLOCK_MODE_SETTINGS:
 				processSettingsMode();
@@ -201,7 +208,7 @@ static void processSettingsMode(void)
 			ds1307_set_seconds(rtc.time.seconds);
 			break;
 		case SETTINGS_MODE_DISCARD:
-			updateTime();
+			//updateTime();
 			break;
 		case SETTINGS_MODE_RESET:
 			ds1307_reset();
@@ -316,11 +323,15 @@ static void highlightSettingsValue()
 	blink ^= TRUE;
 }
 
-static void updateTime(void)
+static bool updateTime(void)
 {
-	rtc.time.hours = ds1307_get_hours();
-	rtc.time.minutes = ds1307_get_minutes();
-	rtc.time.seconds = ds1307_get_seconds();
+    bool status = TRUE;
+    status = ds1307_get_hours(&rtc.time.hours);
+    if (status)
+        status = ds1307_get_minutes(&rtc.time.minutes);
+    if (status)
+        status = ds1307_get_seconds(&rtc.time.seconds);
+    return status;
 }
 
 static uint16_t getCurrentTick(void)

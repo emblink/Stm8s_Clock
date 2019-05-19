@@ -42,12 +42,12 @@ bool ds1307_set_seconds(uint8_t seconds)
     return i2c_send(DS1307_ADDRESS, DS1307_SECONDS_REGISTER, &seconds, sizeof(seconds));
 }
 
-uint8_t ds1307_get_seconds(void)
+bool ds1307_get_seconds(uint8_t *seconds)
 {
-    uint8_t seconds = 0x00;
-    if (i2c_read(DS1307_ADDRESS, DS1307_SECONDS_REGISTER, &seconds, sizeof(seconds)))
-        return (((seconds & 0x70) >> 4) * 10 + (seconds & 0x0F));
-    return 0;
+    bool status = i2c_read(DS1307_ADDRESS, DS1307_SECONDS_REGISTER, seconds, sizeof(*seconds));
+    if (status)
+        *seconds = (((*seconds & 0x70) >> 4) * 10 + (*seconds & 0x0F));
+    return status;
 }
 
 bool ds1307_set_minutes(uint8_t minutes)
@@ -60,12 +60,12 @@ bool ds1307_set_minutes(uint8_t minutes)
     return i2c_send(DS1307_ADDRESS, DS1307_MINUTES_REGISTER, &minutes, sizeof(minutes));
 }
 
-uint8_t ds1307_get_minutes(void)
+bool ds1307_get_minutes(uint8_t *minutes)
 {
-    uint8_t minutes = 0x00;
-    if (i2c_read(DS1307_ADDRESS, DS1307_MINUTES_REGISTER, &minutes, sizeof(minutes)))
-        return (((minutes & 0x70) >> 4) * 10 + (minutes & 0x0F));
-    return 0;
+    bool status = i2c_read(DS1307_ADDRESS, DS1307_MINUTES_REGISTER, minutes, sizeof(*minutes));
+    if (status)
+        *minutes = (((*minutes & 0x70) >> 4) * 10 + (*minutes & 0x0F));
+    return status;
 }
 
 bool ds1307_set_hours(uint8_t hours)
@@ -78,12 +78,12 @@ bool ds1307_set_hours(uint8_t hours)
     return i2c_send(DS1307_ADDRESS, DS1307_HOURS_REGISTER, &hours, sizeof(hours));
 }
 
-uint8_t ds1307_get_hours(void)
+bool ds1307_get_hours(uint8_t *hours)
 {
-    uint8_t hours = 0x00;
-    if (i2c_read(DS1307_ADDRESS, DS1307_HOURS_REGISTER, &hours, sizeof(hours)))
-        return (((hours & 0x30) >> 4) * 10 + (hours & 0x0F));
-    return 0;
+    bool status = i2c_read(DS1307_ADDRESS, DS1307_HOURS_REGISTER, hours, sizeof(*hours));
+    if (status)
+        *hours = (((*hours & 0x30) >> 4) * 10 + (*hours & 0x0F));
+    return status;
 }
 
 bool ds1307_set_day(uint8_t day)
