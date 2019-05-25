@@ -139,17 +139,14 @@ int main( void )
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
 			case CLOCK_MODE_MINUTES_SECONDS:
-                GPIO_WriteHigh(GPIOC, RED_LED_PIN);
-                GPIO_WriteHigh(GPIOD, GREEN_LED_PIN);
 				succsses = updateTime();
                 if (succsses == FALSE) {
+                    GPIO_WriteHigh(GPIOC, RED_LED_PIN); // indicate that error occured
                     i2cDeInit();
                     i2cInit();
                     panelProcess = TRUE;
                     continue;
                 }
-                GPIO_WriteLow(GPIOC, RED_LED_PIN);
-                GPIO_WriteLow(GPIOD, GREEN_LED_PIN);
                 processClockMode();
 				break;
 			case CLOCK_MODE_SETTINGS:
