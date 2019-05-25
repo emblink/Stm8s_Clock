@@ -27,6 +27,7 @@ void i2cInit(void)
 void i2cDeInit(void)
 {
     I2C->CR1 = I2C_CR1_RESET_VALUE;
+    I2C->CR2 |= I2C_CR2_SWRST;
     I2C->CR2 = I2C_CR2_RESET_VALUE;
     I2C->FREQR = I2C_FREQR_RESET_VALUE;
     I2C->OARL = I2C_OARL_RESET_VALUE;
