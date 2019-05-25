@@ -12,6 +12,8 @@
 #include "iwdg.h"
 #include "adc.h"
 
+#define SECONDS(sec) (1000U * sec)
+
 typedef enum ClockMode {
 	CLOCK_MODE_HOURS_MINUTES,
 	CLOCK_MODE_MINUTES_SECONDS,
@@ -39,8 +41,8 @@ typedef union RealTimeClock {
 } RealTimeClock;
 
 static const uint16_t modeUpdatePeriod[CLOCK_MODE_COUNT] = {
-	[CLOCK_MODE_HOURS_MINUTES] = 1000,
-	[CLOCK_MODE_MINUTES_SECONDS] = 1000,
+	[CLOCK_MODE_HOURS_MINUTES] = SECONDS(1),
+	[CLOCK_MODE_MINUTES_SECONDS] = SECONDS(1),
 	[CLOCK_MODE_SETTINGS] = 250,
 };
 
@@ -54,7 +56,7 @@ static uint8_t getEncoderTimeDivider(void);
 static void onAcdMeasurmentCallback(void);
 static void processAdcMeasurmetns(void);
 
-static const uint16_t brightnessAdjustPeriod = 5000;
+static const uint16_t brightnessAdjustPeriod = SECONDS(10);
 static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
 static SettingsMode settingsMode = SETTINGS_MODE_HOURS;
 static volatile bool panelProcess = TRUE;
@@ -86,7 +88,7 @@ int main( void )
     /* Init I2c */
 	i2cInit();
     
-    /* Check for Hard Reset conditon */
+    /* Check Hard Reset conditon */
     GPIO_Init(GPIOC, BUTTON_PIN, GPIO_MODE_IN_PU_NO_IT); // C4
     if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN))
         ds1307_reset();
@@ -136,16 +138,15 @@ int main( void )
 	
 	/* Start application timer */
 	TIM1_Cmd(ENABLE);
-    bool succsses = FALSE;
 	
 	while(1)
 	{
-		if (!(getCurrentTick() % modeUpdatePeriod[clockMode]) || panelProcess) {
+        static uint16_t lastModeUpdateTick = 0;
+		if (getCurrentTick() - lastModeUpdateTick >= modeUpdatePeriod[clockMode]  || panelProcess) {
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
 			case CLOCK_MODE_MINUTES_SECONDS:
-				succsses = updateTime();
-                if (succsses == FALSE) {
+                if (updateTime() == FALSE) {
                     GPIO_WriteHigh(GPIOC, RED_LED_PIN); // indicate that error occured
                     i2cDeInit();
                     i2cInit();
@@ -153,6 +154,7 @@ int main( void )
                     continue;
                 }
                 processClockMode();
+                panelProcess = FALSE;
 				break;
 			case CLOCK_MODE_SETTINGS:
 				processSettingsMode();
@@ -160,12 +162,20 @@ int main( void )
 			default:
 				break;
 			}
+            lastModeUpdateTick = getCurrentTick();
 		}
+        
         // TODO: Use timer 2 or 4 as SysTick, use timer 1 as TRGO for ADC, configure for periodic 1 minute measurments
-        if (timeTick % brightnessAdjustPeriod == 0)
+        static uint16_t lastAdcMeasurementTick = 0;
+        if (getCurrentTick() - lastAdcMeasurementTick >= brightnessAdjustPeriod) {
             adcStart();
-        if (processAdc)
+            lastAdcMeasurementTick = getCurrentTick();
+        }
+        
+        if (processAdc) {
             processAdcMeasurmetns();
+            processAdc = FALSE;
+        }
         iwdgFeed();
 		//wfi();
 	}
@@ -184,7 +194,6 @@ static void processClockMode(void)
 	}
 	max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArrayShifted(rtc.data[clockMode + 1] % 10, FONT_SYMBOL_RIGHT_SHIFT, 2));
 	blink ^= TRUE;
-	panelProcess = FALSE;
 }
 
 static void processSettingsMode(void) 
@@ -210,7 +219,6 @@ static void processSettingsMode(void)
 			ds1307_set_seconds(rtc.time.seconds);
 			break;
 		case SETTINGS_MODE_DISCARD:
-			//updateTime();
 			break;
 		case SETTINGS_MODE_RESET:
 			ds1307_reset();
@@ -364,15 +372,12 @@ static void processAdcMeasurmetns(void)
     for (uint8_t i = 0; i < ADC_BUFFER_SIZE; i++)
         value += adcBuffer[i];
     value /= ADC_BUFFER_SIZE;
-    if (value > 900)
-        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_15);
-    else if (value > 700)
-        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_10);
-    else if (value > 500)
-        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_5);
-    else if (value > 200)
+    if (value > 700)
         max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_0);
-    processAdc = FALSE;
+    else if (value > 300)
+        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_1);
+    else
+        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_2);
 }
 
 static void onAcdMeasurmentCallback(void)
@@ -383,15 +388,10 @@ static void onAcdMeasurmentCallback(void)
 }
 
 /* Encoder Interrupt Handler */
-/**
-  * @brief External Interrupt PORTA Interrupt routine.
-  * @param  None
-  * @retval None
-  */
 static volatile uint16_t encoderLastTick = 0;
 static uint8_t encoderChannelAState = 0;
 static uint8_t encoderChannelBState = 0;
-#define ENCODER_DEBOUNCE 10 // add capasitors 
+#define ENCODER_DEBOUNCE 10
 	
 INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 {
@@ -423,11 +423,6 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 }
 
 /* Encoder Button IRQ handler */
-/**
-  * @brief External Interrupt PORTC Interrupt routine.
-  * @param  None
-  * @retval None
-  */
 #define DEBOUNCE_TIME 10
 static uint16_t lastTick = 0;
 
