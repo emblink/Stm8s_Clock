@@ -68,41 +68,46 @@ static bool processAdc = FALSE;
 
 int main( void )
 {
-    // TODO: add startup delay, in order to get stable supply voltage ~50ms
 	/* Configure system clock */
 	CLK_HSICmd(ENABLE);
 	while (!CLK->ICKR & (1 << 1)); // wait untill clock became stable
 	CLK_SYSCLKConfig(CLK_PRESCALER_HSIDIV1); // 16MHz SYS
 	CLK_SYSCLKConfig(CLK_PRESCALER_CPUDIV1); // 16MHz CPU
-
-	/* Enable clocks for peripherals */
-	CLK_PeripheralClockConfig(CLK_PERIPHERAL_TIMER1, ENABLE);
-	CLK_PeripheralClockConfig(CLK_PERIPHERAL_ADC, ENABLE);
-	CLK_PeripheralClockConfig(CLK_PERIPHERAL_UART1, ENABLE);
-	CLK_PeripheralClockConfig(CLK_PERIPHERAL_I2C, ENABLE);
+    
+    for (uint32_t i = 0; i < U16_MAX; i++); // startup delay, in order to get stable supply voltage
+    
+    /* Enable clocks for peripherals */
+    CLK_PeripheralClockConfig(CLK_PERIPHERAL_I2C, ENABLE);
 	CLK_PeripheralClockConfig(CLK_PERIPHERAL_SPI, ENABLE);
+	CLK_PeripheralClockConfig(CLK_PERIPHERAL_TIMER1, ENABLE);
+    CLK_PeripheralClockConfig(CLK_PERIPHERAL_TIMER2, ENABLE);
+	CLK_PeripheralClockConfig(CLK_PERIPHERAL_ADC, ENABLE);
+
+    /* Init I2c */
+	i2cInit();
+    
+    /* Check for Hard Reset conditon */
+    GPIO_Init(GPIOC, BUTTON_PIN, GPIO_MODE_IN_PU_NO_IT); // C4
+    if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN))
+        ds1307_reset();
+    
+    /* Init SPI */
+	GPIO_Init(GPIOC, SPI_CS_PIN, GPIO_MODE_OUT_PP_HIGH_SLOW);
+	GPIO_Init(GPIOC, SPI_MOSI_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
+	GPIO_Init(GPIOC, SPI_SCK_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
+    spiInit();
+	spiEnable();
 
 	/* Init Leds */
 	GPIO_Init(GPIOC, RED_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW); // C3
 	GPIO_Init(GPIOD, GREEN_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW); // D3
 	
 	/* Init Encoder */
-	GPIO_Init(GPIOC, BUTTON_PIN, GPIO_MODE_IN_PU_IT); // C4
+    GPIO_Init(GPIOC, BUTTON_PIN, GPIO_MODE_IN_PU_IT); // C4
 	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_RISE_FALL);
 	GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // A1
 	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOA, EXTI_SENSITIVITY_RISE_FALL);
 	GPIO_Init(GPIOA, ENCODER_CHANNEL_B_PIN, GPIO_MODE_IN_FL_NO_IT); // A2
-	
-	/* Init SPI */
-	GPIO_Init(GPIOC, SPI_CS_PIN, GPIO_MODE_OUT_PP_HIGH_SLOW);
-	GPIO_Init(GPIOC, SPI_MOSI_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
-	GPIO_Init(GPIOC, SPI_SCK_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
-	
-    spiInit();
-	spiEnable();
-	
-	/* Init I2c */
-	i2cInit();
 	
 	/* Timer 1 Init */
 	TIM1_DeInit();
