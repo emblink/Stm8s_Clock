@@ -46,7 +46,7 @@ static void spiPushByte(uint8_t byte)
 
 void spiSendData(const uint8_t data[], uint16_t len)
 {
-    GPIOC->ODR &= ~(1 << 7); // #define SPI_CS_PIN GPIO_PIN_7
+    GPIOC->ODR &= ~(1 << 7); // #define SPI_CS_PIN GPIO_PIN_7 PORT C // TODO: add init for CS pin
     for (uint16_t i = 0; i < len; i++)
         spiPushByte(data[i]);
     while (SPI->SR & SPI_SR_BSY) {} // wait for last byte transfer complition
