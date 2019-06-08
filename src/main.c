@@ -53,6 +53,7 @@ static void highlightSettingsValue(void);
 static bool updateTime(void);
 static void swichClockMode(void);
 static uint8_t getEncoderTimeDivider(void);
+static bool startAdcMeasurment(AdcChannel channel);
 static void onAcdMeasurmentCallback(void);
 static void processAdcMeasurmetns(void);
 
@@ -67,6 +68,8 @@ static volatile uint16_t timeTick = 0;
 static RealTimeClock rtc = {0};
 static uint16_t adcBuffer[ADC_BUFFER_SIZE] = {0};
 static bool processAdc = FALSE;
+static AdcChannel adcCurrentChannel = ADC_PHOTO_CHANNEL;
+static uint32_t batteryVoltage = 0;
 
 int main( void )
 {
@@ -141,6 +144,7 @@ int main( void )
 	while(1)
 	{
         static uint16_t lastModeUpdateTick = 0;
+        static uint16_t lastAdcPhotoMeasurementTick = 0;
 		if (timeTick - lastModeUpdateTick >= modeUpdatePeriod[clockMode]  || panelProcess) {
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
@@ -152,6 +156,10 @@ int main( void )
                     continue;
                 }
                 processClockMode();
+                if (timeTick - lastAdcPhotoMeasurementTick >= brightnessAdjustPeriod) {
+                    startAdcMeasurment(ADC_PHOTO_CHANNEL);
+                    lastAdcPhotoMeasurementTick = timeTick;
+                }
                 panelProcess = FALSE;
 				break;
 			case CLOCK_MODE_SETTINGS:
@@ -162,14 +170,8 @@ int main( void )
 			}
             lastModeUpdateTick = timeTick;
 		}
-        
-        // TODO: Use timer 2 or 4 as SysTick, use timer 1 as TRGO for ADC, configure for periodic 1 minute measurments
-        static uint16_t lastAdcMeasurementTick = 0;
-        if (timeTick - lastAdcMeasurementTick >= brightnessAdjustPeriod) {
-            adcStartMesurment(ADC_PHOTO_CHANNEL, onAcdMeasurmentCallback);
-            lastAdcMeasurementTick = timeTick;
-        }
-        
+
+        // TODO: Use timer 2 or 4 as SysTick, use timer 1 as TRGO for ADC, configure for periodic 1 minute measurments     
         if (processAdc) {
             processAdcMeasurmetns();
             processAdc = FALSE;
@@ -223,7 +225,6 @@ static void processSettingsMode(void)
 			ds1307_reset();
 			break;
         case SETTINGS_MODE_BATTERY:
-            // display battery voltage
             break;
 		default:
 			settingsInited = FALSE;
@@ -274,6 +275,7 @@ static void swichClockMode(void)
 			break;
 		case SETTINGS_MODE_RESET:
             settingsMode = SETTINGS_MODE_BATTERY;
+            startAdcMeasurment(ADC_BATT_CHANNEL);
 			break;
         case SETTINGS_MODE_BATTERY:
 		default:
@@ -333,10 +335,10 @@ static void highlightSettingsValue()
 		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('T'));
 		break;
     case SETTINGS_MODE_BATTERY:
-        max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('B'));
-		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('A'));
-		max7219SendSymbol(MAX7219_NUMBER_2, fontGetCharArray('T'));
-		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('T'));
+        max7219SendSymbol(MAX7219_NUMBER_0, fontGetNumberArray(batteryVoltage / 1000 - '0'));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetNumberArray(batteryVoltage /100 % 10 - '0'));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArray(batteryVoltage / 10 % 10 - '0'));
+		max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(batteryVoltage % 10 - '0'));
         break;
 	default:
 		break;
@@ -368,24 +370,50 @@ static uint8_t getEncoderTimeDivider(void)
     }    
 }
 
+static bool startAdcMeasurment(AdcChannel channel)
+{
+    adcCurrentChannel = channel;
+    adcStop();
+    switch(channel) {
+    case ADC_PHOTO_CHANNEL:
+        return adcStartMesurment(ADC_PHOTO_CHANNEL, onAcdMeasurmentCallback);
+    case ADC_BATT_CHANNEL:
+        GPIO_WriteHigh(BATT_MEASURE_EN_PORT, BATT_MEASURE_EN_PIN);
+        return adcStartMesurment(ADC_BATT_CHANNEL, onAcdMeasurmentCallback);
+    default:
+        return FALSE;
+    }
+}
+
 static void processAdcMeasurmetns(void)
 {
-    uint16_t value = 0;
+    uint32_t value = 0;
     for (uint8_t i = 0; i < ADC_BUFFER_SIZE; i++)
         value += adcBuffer[i];
     value /= ADC_BUFFER_SIZE;
-    if (value > 700)
-        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_0);
-    else if (value > 300)
-        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_1);
-    else
-        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_2);
+    
+    switch(adcCurrentChannel) {
+    case ADC_PHOTO_CHANNEL:
+        if (value > 700)
+            max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_0);
+        else if (value > 300)
+            max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_1);
+        else
+            max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_2);
+        break;
+    case ADC_BATT_CHANNEL: {
+        GPIO_WriteLow(BATT_MEASURE_EN_PORT, BATT_MEASURE_EN_PIN);
+        batteryVoltage = (3222 * value) / 1000; // oneAdcPoint = 3.3v / 1024 == 0,003222 V == 3,222 mV / 1000
+    } break;
+    default:
+        break;
+    }
 }
 
 static void onAcdMeasurmentCallback(void)
 {
-    adcStop();
     adcGetBufferedData(adcBuffer);
+    adcStop();
     processAdc = TRUE;
 }
 

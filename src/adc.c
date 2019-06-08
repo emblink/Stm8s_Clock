@@ -21,8 +21,10 @@ void adcInit(void)
 
 void adcStop(void)
 {
+    ADC1->CSR &= ~ADC1_CSR_EOCIE; // disable EOC interrupt
     ADC1->CR1 &= ~ADC1_CR1_CONT;
 	ADC1->CR1 &= ~ADC1_CR1_ADON;
+    adcBusy = FALSE;
 }
 
 bool adcStartMesurment(AdcChannel channel, adcCallback callback)
@@ -30,9 +32,10 @@ bool adcStartMesurment(AdcChannel channel, adcCallback callback)
     if (adcBusy || channel >= ADC_CHANNEL_COUNT || callback == NULL)
         return FALSE;
     ADC1->CSR &= 0xF0;
-    ADC1->CSR |= channel & 0x0F;
+    ADC1->CSR |= channel;
     measureCallback = callback;
     adcBusy = TRUE;
+    ADC1->CSR |= ADC1_CSR_EOCIE;
     ADC1->CR1 |= ADC1_CR1_CONT;
     ADC1->CR1 |= ADC1_CR1_ADON;
     ADC1->CR1 |= ADC1_CR1_ADON;

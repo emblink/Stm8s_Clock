@@ -7,11 +7,11 @@
 #define ADC_BUFFER_SIZE (10)
 
 typedef enum AdcChannel {
-    ADC_CHANNEL_0, // PC4
-    ADC_CHANNEL_1, // PD2
-    ADC_CHANNEL_2, // PD3
-    ADC_CHANNEL_3, // PD5
-    ADC_CHANNEL_4, // PD6
+    ADC_CHANNEL_2 = 0x02, // PC4
+    ADC_CHANNEL_3, // PD2
+    ADC_CHANNEL_4, // PD3
+    ADC_CHANNEL_5, // PD5
+    ADC_CHANNEL_6, // PD6
     ADC_CHANNEL_COUNT
 } AdcChannel;
 
