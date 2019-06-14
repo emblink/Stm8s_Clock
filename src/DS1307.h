@@ -14,8 +14,12 @@ bool ds1307_get_minutes(uint8_t *min);
 bool ds1307_set_hours(uint8_t hour);
 bool ds1307_get_hours(uint8_t *hour);
 bool ds1307_set_day(uint8_t day);
+bool ds1307_get_day(uint8_t *day);
 bool ds1307_set_date(uint8_t date);
-bool ds1307_set_mounth(uint8_t month);
+bool ds1307_get_date(uint8_t *date);
+bool ds1307_set_month(uint8_t month);
+bool ds1307_get_month(uint8_t *month);
 bool ds1307_set_year(uint8_t year);
+bool ds1307_get_year(uint8_t *year);
 
 #endif // __DS_1307_H
