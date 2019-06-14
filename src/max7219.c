@@ -27,7 +27,7 @@ static void max7219SendData(const uint8_t dataBuff[], uint16_t size);
 void max7219Init(void)
 {
     max7219SendSettings();
-    max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_INTENSITY_REG, MAX7219_INTENSITY_LEVEL_DEFAULT);
+    max7219FillCommandBuff(MAX7219_NUMBER_COUNT, MAX7219_INTENSITY_REG, MAX7219_INTENSITY_LEVEL_0);
 	max7219SendData(dataBuff, MAX7219_COMMAND_BUFF_SIZE);
 }
 

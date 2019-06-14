@@ -28,6 +28,7 @@ typedef enum SettingsMode {
 	SETTINGS_MODE_APPLY,
 	SETTINGS_MODE_DISCARD,
 	SETTINGS_MODE_RESET,
+    SETTINGS_MODE_BATTERY,
 	SETTINGS_MODE_COUNT,
 } SettingsMode;
 
@@ -49,10 +50,10 @@ static const uint16_t modeUpdatePeriod[CLOCK_MODE_COUNT] = {
 static void processClockMode(void);
 static void processSettingsMode(void);
 static void highlightSettingsValue(void);
-static uint16_t getCurrentTick(void);
 static bool updateTime(void);
 static void swichClockMode(void);
 static uint8_t getEncoderTimeDivider(void);
+static bool startAdcMeasurment(AdcChannel channel);
 static void onAcdMeasurmentCallback(void);
 static void processAdcMeasurmetns(void);
 
@@ -67,6 +68,8 @@ static volatile uint16_t timeTick = 0;
 static RealTimeClock rtc = {0};
 static uint16_t adcBuffer[ADC_BUFFER_SIZE] = {0};
 static bool processAdc = FALSE;
+static AdcChannel adcCurrentChannel = ADC_PHOTO_CHANNEL;
+static uint32_t batteryVoltage = 0;
 
 int main( void )
 {
@@ -84,14 +87,24 @@ int main( void )
 	CLK_PeripheralClockConfig(CLK_PERIPHERAL_TIMER1, ENABLE);
     CLK_PeripheralClockConfig(CLK_PERIPHERAL_TIMER2, ENABLE);
 	CLK_PeripheralClockConfig(CLK_PERIPHERAL_ADC, ENABLE);
-
+    
+    /* Init GPIO */
+    GPIO_Init(BATT_MEASURE_EN_PORT, BATT_MEASURE_EN_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
+    GPIO_Init(DEBUG_PORT, DEBUG_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
+    
     /* Init I2c */
 	i2cInit();
     
     /* Check Hard Reset conditon */
-    GPIO_Init(GPIOC, BUTTON_PIN, GPIO_MODE_IN_PU_NO_IT); // C4
-    if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN))
+    GPIO_Init(ENCODER_BUTTON_PORT, ENCODER_BUTTON_PIN, GPIO_MODE_IN_PU_NO_IT);
+    if (!GPIO_ReadInputPin(ENCODER_BUTTON_PORT, ENCODER_BUTTON_PIN))
         ds1307_reset();
+    
+    /* Init Encoder */
+    GPIO_Init(ENCODER_BUTTON_PORT, ENCODER_BUTTON_PIN, GPIO_MODE_IN_PU_IT);
+    GPIO_Init(ENCODER_CHANNEL_A_PORT, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_PU_NO_IT);
+    GPIO_Init(ENCODER_CHANNEL_B_PORT, ENCODER_CHANNEL_B_PIN, GPIO_MODE_IN_PU_NO_IT);
+    EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOD, EXTI_SENSITIVITY_FALL_ONLY);
     
     /* Init SPI */
 	GPIO_Init(GPIOC, SPI_CS_PIN, GPIO_MODE_OUT_PP_HIGH_SLOW);
@@ -99,17 +112,6 @@ int main( void )
 	GPIO_Init(GPIOC, SPI_SCK_PIN, GPIO_MODE_OUT_PP_HIGH_FAST);
     spiInit();
 	spiEnable();
-
-	/* Init Leds */
-	GPIO_Init(GPIOC, RED_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW); // C3
-	GPIO_Init(GPIOD, GREEN_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW); // D3
-	
-	/* Init Encoder */
-    GPIO_Init(GPIOC, BUTTON_PIN, GPIO_MODE_IN_PU_IT); // C4
-	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_RISE_FALL);
-	GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // A1
-	EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOA, EXTI_SENSITIVITY_RISE_FALL);
-	GPIO_Init(GPIOA, ENCODER_CHANNEL_B_PIN, GPIO_MODE_IN_FL_NO_IT); // A2
 	
 	/* Timer 1 Init */
 	TIM1_DeInit();
@@ -132,8 +134,8 @@ int main( void )
 	max7219Init();
     
     /* ADC init */
-	adcInit(5, onAcdMeasurmentCallback);
-    
+	adcInit();
+
 	enableInterrupts();
 	
 	/* Start application timer */
@@ -142,18 +144,22 @@ int main( void )
 	while(1)
 	{
         static uint16_t lastModeUpdateTick = 0;
-		if (getCurrentTick() - lastModeUpdateTick >= modeUpdatePeriod[clockMode]  || panelProcess) {
+        static uint16_t lastAdcPhotoMeasurementTick = 0;
+		if (timeTick - lastModeUpdateTick >= modeUpdatePeriod[clockMode]  || panelProcess) {
 			switch (clockMode) {
 			case CLOCK_MODE_HOURS_MINUTES:
 			case CLOCK_MODE_MINUTES_SECONDS:
                 if (updateTime() == FALSE) {
-                    GPIO_WriteHigh(GPIOC, RED_LED_PIN); // indicate that error occured
                     i2cDeInit();
                     i2cInit();
                     panelProcess = TRUE;
                     continue;
                 }
                 processClockMode();
+                if (timeTick - lastAdcPhotoMeasurementTick >= brightnessAdjustPeriod) {
+                    startAdcMeasurment(ADC_PHOTO_CHANNEL);
+                    lastAdcPhotoMeasurementTick = timeTick;
+                }
                 panelProcess = FALSE;
 				break;
 			case CLOCK_MODE_SETTINGS:
@@ -162,16 +168,10 @@ int main( void )
 			default:
 				break;
 			}
-            lastModeUpdateTick = getCurrentTick();
+            lastModeUpdateTick = timeTick;
 		}
-        
-        // TODO: Use timer 2 or 4 as SysTick, use timer 1 as TRGO for ADC, configure for periodic 1 minute measurments
-        static uint16_t lastAdcMeasurementTick = 0;
-        if (getCurrentTick() - lastAdcMeasurementTick >= brightnessAdjustPeriod) {
-            adcStart();
-            lastAdcMeasurementTick = getCurrentTick();
-        }
-        
+
+        // TODO: Use timer 2 or 4 as SysTick, use timer 1 as TRGO for ADC, configure for periodic 1 minute measurments     
         if (processAdc) {
             processAdcMeasurmetns();
             processAdc = FALSE;
@@ -203,7 +203,8 @@ static void processSettingsMode(void)
 	if (!settingsInited) {
 		settingsMode = SETTINGS_MODE_HOURS;
 		encoderCounter = &rtc.data[settingsMode];
-		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_IT); // A1 // enable encoder Interrupts
+        GPIO_Init(ENCODER_CHANNEL_A_PORT, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_PU_IT); //enable encoder Interrupts
+        EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_FALL_ONLY);
 		max7219SendSymbol(MAX7219_NUMBER_COUNT, fontGetSpaceArray());
 		settingsInited = TRUE;
 		panelProcess = FALSE;
@@ -223,6 +224,8 @@ static void processSettingsMode(void)
 		case SETTINGS_MODE_RESET:
 			ds1307_reset();
 			break;
+        case SETTINGS_MODE_BATTERY:
+            break;
 		default:
 			settingsInited = FALSE;
 			break;
@@ -230,7 +233,7 @@ static void processSettingsMode(void)
 	}
 	
 	if (settingsHoldEvent) {
-		GPIO_Init(GPIOA, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_FL_NO_IT); // disable encoder Interrupts
+        GPIO_Init(ENCODER_CHANNEL_A_PORT, ENCODER_CHANNEL_A_PIN, GPIO_MODE_IN_PU_NO_IT); //disable encoder Interrupts
 		encoderCounter = NULL;
 		clockMode = CLOCK_MODE_HOURS_MINUTES;
 		panelProcess = TRUE;
@@ -271,6 +274,10 @@ static void swichClockMode(void)
 			settingsMode = SETTINGS_MODE_RESET;
 			break;
 		case SETTINGS_MODE_RESET:
+            settingsMode = SETTINGS_MODE_BATTERY;
+            startAdcMeasurment(ADC_BATT_CHANNEL);
+			break;
+        case SETTINGS_MODE_BATTERY:
 		default:
 			settingsMode = SETTINGS_MODE_HOURS;
 			encoderCounter = &rtc.data[settingsMode];
@@ -310,23 +317,29 @@ static void highlightSettingsValue()
 		}
 		break;
 	case SETTINGS_MODE_APPLY:
-		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('A')); // A
-		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('P')); // P
-		max7219SendSymbol(MAX7219_NUMBER_2, fontGetCharArray('L')); // L
-		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('Y')); // Y
+		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('A'));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('P'));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontGetCharArray('L'));
+		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('Y'));
 		break;
 	case SETTINGS_MODE_DISCARD:
-		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('E')); // E
-		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('X')); // X
-		max7219SendSymbol(MAX7219_NUMBER_2, fontGetCharArray('I')); // I
-		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('T')); // T
+		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('E'));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('X'));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontGetCharArray('I'));
+		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('T'));
 		break;
 	case SETTINGS_MODE_RESET:
-		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('R')); // R
-		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('S')); // S
-		max7219SendSymbol(MAX7219_NUMBER_2, fontGetCharArray('E')); // E
-		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('T')); // T
+		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('R'));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('S'));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontGetCharArray('E'));
+		max7219SendSymbol(MAX7219_NUMBER_3, fontGetCharArray('T'));
 		break;
+    case SETTINGS_MODE_BATTERY:
+        max7219SendSymbol(MAX7219_NUMBER_0, fontGetNumberArray(batteryVoltage / 1000 - '0'));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetNumberArray(batteryVoltage /100 % 10 - '0'));
+		max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArray(batteryVoltage / 10 % 10 - '0'));
+		max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(batteryVoltage % 10 - '0'));
+        break;
 	default:
 		break;
 	}
@@ -344,15 +357,6 @@ static bool updateTime(void)
     return status;
 }
 
-static uint16_t getCurrentTick(void)
-{ 
-  uint16_t tick = 0;
-  disableInterrupts();
-  tick = timeTick;  
-  enableInterrupts();
-  return tick;
-}
-
 static uint8_t getEncoderTimeDivider(void)
 {
     switch(settingsMode) {
@@ -366,77 +370,68 @@ static uint8_t getEncoderTimeDivider(void)
     }    
 }
 
+static bool startAdcMeasurment(AdcChannel channel)
+{
+    adcCurrentChannel = channel;
+    adcStop();
+    switch(channel) {
+    case ADC_PHOTO_CHANNEL:
+        return adcStartMesurment(ADC_PHOTO_CHANNEL, onAcdMeasurmentCallback);
+    case ADC_BATT_CHANNEL:
+        GPIO_WriteHigh(BATT_MEASURE_EN_PORT, BATT_MEASURE_EN_PIN);
+        return adcStartMesurment(ADC_BATT_CHANNEL, onAcdMeasurmentCallback);
+    default:
+        return FALSE;
+    }
+}
+
 static void processAdcMeasurmetns(void)
 {
-    uint16_t value = 0;
+    uint32_t value = 0;
     for (uint8_t i = 0; i < ADC_BUFFER_SIZE; i++)
         value += adcBuffer[i];
     value /= ADC_BUFFER_SIZE;
-    if (value > 700)
-        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_0);
-    else if (value > 300)
-        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_1);
-    else
-        max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_2);
+    
+    switch(adcCurrentChannel) {
+    case ADC_PHOTO_CHANNEL:
+        if (value > 700)
+            max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_0);
+        else if (value > 300)
+            max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_1);
+        else
+            max7219SendCommand(MAX7219_NUMBER_COUNT, MAX7219_SET_INTENSITY_LEVEL, MAX7219_INTENSITY_LEVEL_2);
+        break;
+    case ADC_BATT_CHANNEL: {
+        GPIO_WriteLow(BATT_MEASURE_EN_PORT, BATT_MEASURE_EN_PIN);
+        batteryVoltage = (3222 * value) / 1000; // oneAdcPoint = 3.3v / 1024 == 0,003222 V == 3,222 mV / 1000
+    } break;
+    default:
+        break;
+    }
 }
 
 static void onAcdMeasurmentCallback(void)
 {
-    adcStop();
     adcGetBufferedData(adcBuffer);
+    adcStop();
     processAdc = TRUE;
-}
-
-/* Encoder Interrupt Handler */
-static volatile uint16_t encoderLastTick = 0;
-static uint8_t encoderChannelAState = 0;
-static uint8_t encoderChannelBState = 0;
-#define ENCODER_DEBOUNCE 10
-	
-INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
-{
-	encoderChannelAState = (GPIOA->IDR & GPIO_PIN_1) >> 1;
-	encoderChannelBState = (GPIOA->IDR & GPIO_PIN_2) >> 2;
-	static uint16_t counter = 0;
-	counter++;
-	uint16_t currentTick = getCurrentTick();
-	if (currentTick - encoderLastTick > ENCODER_DEBOUNCE) {
-		static uint16_t ISR_COUNTER = 0;
-		ISR_COUNTER++;
-		if (encoderChannelAState != encoderChannelBState) {
-			if (encoderCounter) {
-				*encoderCounter += 1;
-				*encoderCounter %= getEncoderTimeDivider();
-			}
-		} else {
-			if (encoderCounter) {
-				if (*encoderCounter > 0) {
-					*encoderCounter -= 1;
-					*encoderCounter %= getEncoderTimeDivider();
-				} else {
-					*encoderCounter = getEncoderTimeDivider() - 1;
-				}
-			}
-		}
-	}
-	encoderLastTick = currentTick;
 }
 
 /* Encoder Button IRQ handler */
 #define DEBOUNCE_TIME 10
-static uint16_t lastTick = 0;
 
-INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
+INTERRUPT_HANDLER(EXTI_PORTD_IRQHandler, 6)
 {
-	static bool buttonState = TRUE;
-    uint16_t currentTick = getCurrentTick();
-	if (currentTick - lastTick > DEBOUNCE_TIME) {
-		if (!GPIO_ReadInputPin(GPIOC, BUTTON_PIN) && buttonState) {
-			buttonState = FALSE;
+    static uint16_t lastTick = 0;
+	if (timeTick - lastTick > DEBOUNCE_TIME) {
+        EXTI_Sensitivity_TypeDef sence = EXTI_GetExtIntSensitivity(EXTI_PORT_GPIOD);
+		if (sence == EXTI_SENSITIVITY_FALL_ONLY) {
+            EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOD, EXTI_SENSITIVITY_RISE_ONLY);
 			TIM2_Cmd(ENABLE);
 		} else {
-			buttonState = TRUE;
+            EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOD, EXTI_SENSITIVITY_FALL_ONLY);
 			TIM2_Cmd(DISABLE);
+            TIM2_SetCounter(0);
 			if (buttonHoldEvent) {
 				buttonHoldEvent = FALSE;
 			} else {
@@ -444,7 +439,42 @@ INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
 			}
 		}
 	}
-	lastTick = currentTick;
+	lastTick = timeTick;
+}
+
+/* Encoder Interrupt Handler */
+#define ENCODER_DEBOUNCE 1
+
+INTERRUPT_HANDLER(EXTI_PORTC_IRQHandler, 5)
+{
+    static uint16_t encoderLastTick = 0;
+	if (timeTick - encoderLastTick > ENCODER_DEBOUNCE) {
+        EXTI_Sensitivity_TypeDef sence = EXTI_GetExtIntSensitivity(EXTI_PORT_GPIOC);
+        if (sence == EXTI_SENSITIVITY_RISE_ONLY) {
+            EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_FALL_ONLY);
+            encoderLastTick = timeTick;
+            return;
+        } else {
+            EXTI_SetExtIntSensitivity(EXTI_PORT_GPIOC, EXTI_SENSITIVITY_RISE_ONLY);
+        }
+        if (encoderCounter == NULL)
+            return;
+        bool channelB = (bool) (GPIO_ReadInputPin(ENCODER_CHANNEL_B_PORT, ENCODER_CHANNEL_B_PIN) == SET);
+        GPIO_WriteHigh(DEBUG_PORT, DEBUG_PIN);
+        GPIO_WriteLow(DEBUG_PORT, DEBUG_PIN);
+        if (channelB) {
+            *encoderCounter += 1;
+            *encoderCounter %= getEncoderTimeDivider();
+        } else {
+            if (*encoderCounter > 0) {
+                *encoderCounter -= 1;
+                *encoderCounter %= getEncoderTimeDivider();
+            } else {
+                *encoderCounter = getEncoderTimeDivider() - 1;
+            }
+        }
+	}
+	encoderLastTick = timeTick;
 }
 
 /* Application Timer Interrupt Handler */
@@ -473,7 +503,6 @@ INTERRUPT_HANDLER(TIM2_UPD_OVF_BRK_IRQHandler, 13)
 		settingsHoldEvent = TRUE;
 	}
 	buttonHoldEvent = TRUE;
-	GPIO_WriteReverse(GPIOC, RED_LED_PIN);
 }
 
 #ifdef USE_FULL_ASSERT
