@@ -25,6 +25,10 @@ typedef enum SettingsMode {
 	SETTINGS_MODE_HOURS,
 	SETTINGS_MODE_MINUTES,
 	SETTINGS_MODE_SECONDS,
+    SETTINGS_MODE_DAY,
+    SETTINGS_MODE_DATE,
+    SETTINGS_MODE_MONTH,
+    SETTINGS_MODE_YEAR,
 	SETTINGS_MODE_APPLY,
 	SETTINGS_MODE_DISCARD,
 	SETTINGS_MODE_RESET,
@@ -37,6 +41,10 @@ typedef union RealTimeClock {
 		uint8_t hours;
 		uint8_t minutes;
 		uint8_t seconds;
+        uint8_t day;
+        uint8_t date;
+        uint8_t month;
+        uint8_t year;
 	} time;
 	uint8_t data[sizeof(time)];
 } RealTimeClock;
@@ -56,6 +64,7 @@ static uint8_t getEncoderTimeDivider(void);
 static bool startAdcMeasurment(AdcChannel channel);
 static void onAcdMeasurmentCallback(void);
 static void processAdcMeasurmetns(void);
+static void checkSeasonalClockChange(void);
 
 static const uint16_t brightnessAdjustPeriod = SECONDS(10);
 static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
@@ -128,7 +137,7 @@ int main( void )
 	TIM2_ITConfig(TIM2_IT_UPDATE, ENABLE);
 
     /* Independent WatchDog Timer Innit */
-    //iwdgInit();
+    iwdgInit();
     
 	/* Max7219 Init */
 	max7219Init();
@@ -155,6 +164,7 @@ int main( void )
                     panelProcess = TRUE;
                     continue;
                 }
+                checkSeasonalClockChange();
                 processClockMode();
                 if (timeTick - lastAdcPhotoMeasurementTick >= brightnessAdjustPeriod) {
                     startAdcMeasurment(ADC_PHOTO_CHANNEL);
@@ -218,6 +228,10 @@ static void processSettingsMode(void)
 			ds1307_set_hours(rtc.time.hours);
 			ds1307_set_minutes(rtc.time.minutes);
 			ds1307_set_seconds(rtc.time.seconds);
+            ds1307_set_day(rtc.time.day);
+            ds1307_set_date(rtc.time.date);
+			ds1307_set_month(rtc.time.month);
+			ds1307_set_year(rtc.time.year);
 			break;
 		case SETTINGS_MODE_DISCARD:
 			break;
@@ -254,33 +268,14 @@ static void swichClockMode(void)
 		panelProcess = TRUE;
 		break;
 	case CLOCK_MODE_SETTINGS:
+        settingsMode++;
+        settingsMode %= SETTINGS_MODE_COUNT;
+        encoderCounter = settingsMode < SETTINGS_MODE_APPLY ? &rtc.data[settingsMode] : NULL;
 		switch(settingsMode) {
-		case SETTINGS_MODE_HOURS:
-			settingsMode = SETTINGS_MODE_MINUTES;
-			encoderCounter = &rtc.data[settingsMode];
-			break;
-		case SETTINGS_MODE_MINUTES:
-			settingsMode = SETTINGS_MODE_SECONDS;
-			encoderCounter = &rtc.data[settingsMode];
-			break;
-		case SETTINGS_MODE_SECONDS:
-			settingsMode = SETTINGS_MODE_APPLY;
-			encoderCounter = NULL;
-			break;
-		case SETTINGS_MODE_APPLY:
-			settingsMode = SETTINGS_MODE_DISCARD;
-			break;
-		case SETTINGS_MODE_DISCARD:
-			settingsMode = SETTINGS_MODE_RESET;
-			break;
-		case SETTINGS_MODE_RESET:
-            settingsMode = SETTINGS_MODE_BATTERY;
+        case SETTINGS_MODE_BATTERY:
             startAdcMeasurment(ADC_BATT_CHANNEL);
 			break;
-        case SETTINGS_MODE_BATTERY:
 		default:
-			settingsMode = SETTINGS_MODE_HOURS;
-			encoderCounter = &rtc.data[settingsMode];
 			break;
 		}
 		break;
@@ -316,6 +311,50 @@ static void highlightSettingsValue()
 			max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(rtc.data[settingsMode] % 10));
 		}
 		break;
+    case SETTINGS_MODE_DAY:
+        max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('D'));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('Y'));
+        if (blink) {
+			max7219SendSymbol(MAX7219_NUMBER_2, fontGetSpaceArray());
+			max7219SendSymbol(MAX7219_NUMBER_3, fontGetSpaceArray());
+		} else {
+            max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArray(rtc.data[settingsMode] / 10));
+            max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(rtc.data[settingsMode] % 10));
+		}
+        break;
+    case SETTINGS_MODE_DATE:
+        max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('D'));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('T'));
+        if (blink) {
+			max7219SendSymbol(MAX7219_NUMBER_2, fontGetSpaceArray());
+			max7219SendSymbol(MAX7219_NUMBER_3, fontGetSpaceArray());
+		} else {
+            max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArray(rtc.data[settingsMode] / 10));
+            max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(rtc.data[settingsMode] % 10));
+		}
+        break;
+    case SETTINGS_MODE_MONTH:
+        max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('M'));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('N'));
+        if (blink) {
+			max7219SendSymbol(MAX7219_NUMBER_2, fontGetSpaceArray());
+			max7219SendSymbol(MAX7219_NUMBER_3, fontGetSpaceArray());
+		} else {
+            max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArray(rtc.data[settingsMode] / 10));
+            max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(rtc.data[settingsMode] % 10));
+		}
+        break;
+    case SETTINGS_MODE_YEAR:
+        max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('Y'));
+		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('E'));
+        if (blink) {
+			max7219SendSymbol(MAX7219_NUMBER_2, fontGetSpaceArray());
+			max7219SendSymbol(MAX7219_NUMBER_3, fontGetSpaceArray());
+		} else {
+            max7219SendSymbol(MAX7219_NUMBER_2, fontGetNumberArray(rtc.data[settingsMode] / 10));
+            max7219SendSymbol(MAX7219_NUMBER_3, fontGetNumberArray(rtc.data[settingsMode] % 10));   
+		}
+        break;
 	case SETTINGS_MODE_APPLY:
 		max7219SendSymbol(MAX7219_NUMBER_0, fontGetCharArray('A'));
 		max7219SendSymbol(MAX7219_NUMBER_1, fontGetCharArray('P'));
@@ -348,13 +387,29 @@ static void highlightSettingsValue()
 
 static bool updateTime(void)
 {
-    bool status = TRUE;
-    status = ds1307_get_hours(&rtc.time.hours);
-    if (status)
-        status = ds1307_get_minutes(&rtc.time.minutes);
-    if (status)
-        status = ds1307_get_seconds(&rtc.time.seconds);
-    return status;
+    bool status = FALSE;
+    status |= !ds1307_get_hours(&rtc.time.hours);
+    status |= !ds1307_get_minutes(&rtc.time.minutes);
+    status |= !ds1307_get_seconds(&rtc.time.seconds);
+    status |= !ds1307_get_day(&rtc.time.day);
+    status |= !ds1307_get_date(&rtc.time.date);
+    status |= !ds1307_get_month(&rtc.time.month);
+    status |= !ds1307_get_year(&rtc.time.year);
+    return status == FALSE ? TRUE : FALSE;
+}
+
+static void checkSeasonalClockChange(void)
+{   
+    /* last sunday of march */
+    if (rtc.time.month == 3 && rtc.time.date > 23 && rtc.time.day == 7 
+        && rtc.time.hours == 3 && rtc.time.minutes == 0 && rtc.time.seconds == 0) {
+        ds1307_set_hours(rtc.time.hours + 1);
+    }
+    /* last sunday of october */
+    if (rtc.time.month == 10 && rtc.time.date > 23 && rtc.time.day == 7 
+        && rtc.time.hours == 4 && rtc.time.minutes == 0 && rtc.time.seconds == 0) {
+        ds1307_set_hours(rtc.time.hours - 1);
+    }
 }
 
 static uint8_t getEncoderTimeDivider(void)
@@ -365,6 +420,14 @@ static uint8_t getEncoderTimeDivider(void)
     case SETTINGS_MODE_MINUTES:
     case SETTINGS_MODE_SECONDS:
         return 60;
+    case SETTINGS_MODE_DAY:
+        return 8;
+    case SETTINGS_MODE_DATE:
+        return 32;
+    case SETTINGS_MODE_MONTH:
+        return 13;
+    case SETTINGS_MODE_YEAR:
+        return 100;
     default:
         return 0;
     }    
