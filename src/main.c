@@ -65,6 +65,7 @@ static bool startAdcMeasurment(AdcChannel channel);
 static void onAcdMeasurmentCallback(void);
 static void processAdcMeasurmetns(void);
 static void checkSeasonalClockChange(void);
+static void secondsStealer(void);
 
 static const uint16_t brightnessAdjustPeriod = SECONDS(10);
 static ClockMode clockMode = CLOCK_MODE_HOURS_MINUTES;
@@ -79,6 +80,7 @@ static uint16_t adcBuffer[ADC_BUFFER_SIZE] = {0};
 static bool processAdc = FALSE;
 static AdcChannel adcCurrentChannel = ADC_PHOTO_CHANNEL;
 static uint32_t batteryVoltage = 0;
+static uint8_t lastStealedSecondHour = 0;
 
 int main( void )
 {
@@ -166,6 +168,7 @@ int main( void )
                 }
                 checkSeasonalClockChange();
                 processClockMode();
+                secondsStealer();
                 if (timeTick - lastAdcPhotoMeasurementTick >= brightnessAdjustPeriod) {
                     startAdcMeasurment(ADC_PHOTO_CHANNEL);
                     lastAdcPhotoMeasurementTick = timeTick;
@@ -409,6 +412,17 @@ static void checkSeasonalClockChange(void)
     if (rtc.time.month == 10 && rtc.time.date > 23 && rtc.time.day == 7 
         && rtc.time.hours == 4 && rtc.time.minutes == 0 && rtc.time.seconds == 0) {
         ds1307_set_hours(rtc.time.hours - 1);
+    }
+}
+
+static void secondsStealer(void)
+{
+    // subtract a second every 4 hours, in order to get proper time
+    if (rtc.time.hours % 4 == 0 && rtc.time.minutes == 0 && rtc.time.seconds == 2) {
+        if (lastStealedSecondHour != rtc.time.hours) {
+            ds1307_set_seconds(rtc.time.seconds - 1);
+            lastStealedSecondHour = rtc.time.hours;
+        }
     }
 }
 
