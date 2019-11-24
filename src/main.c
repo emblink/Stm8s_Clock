@@ -403,15 +403,20 @@ static bool updateTime(void)
 
 static void checkSeasonalClockChange(void)
 {   
+    static bool applySwitch = TRUE;
     /* last sunday of march */
     if (rtc.time.month == 3 && rtc.time.date > 23 && rtc.time.day == 7 
-        && rtc.time.hours == 3 && rtc.time.minutes == 0 && rtc.time.seconds == 0) {
+        && rtc.time.hours == 3) {
         ds1307_set_hours(rtc.time.hours + 1);
+        applySwitch = TRUE;
     }
     /* last sunday of october */
     if (rtc.time.month == 10 && rtc.time.date > 23 && rtc.time.day == 7 
-        && rtc.time.hours == 4 && rtc.time.minutes == 0 && rtc.time.seconds == 0) {
-        ds1307_set_hours(rtc.time.hours - 1);
+        && rtc.time.hours == 4) {
+        if (applySwitch) {
+            ds1307_set_hours(rtc.time.hours - 1);
+            applySwitch = FALSE;
+        }
     }
 }
 
