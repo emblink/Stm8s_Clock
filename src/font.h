@@ -6,8 +6,8 @@
 #define FONT_SYMBOL_SIZE_IN_BYTES 8
 
 typedef enum SymbolShift {
-	FONT_SYMBOL_LEFT_SHIFT,
-	FONT_SYMBOL_RIGHT_SHIFT,
+    FONT_SYMBOL_LEFT_SHIFT,
+    FONT_SYMBOL_RIGHT_SHIFT,
 } FontSymbolShift;
 
 const uint8_t * fontGetNumberArray(uint8_t number);

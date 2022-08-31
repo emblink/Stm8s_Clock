@@ -43,70 +43,70 @@ void i2cDeInit(void)
 
 bool i2c_send(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t txBuff[], uint16_t txSize)
 {
-	if((I2C->SR3 & I2C_SR3_BUSY) || !txBuff || !txSize)
-		return FALSE;
+    if((I2C->SR3 & I2C_SR3_BUSY) || !txBuff || !txSize)
+        return FALSE;
     
-	I2C->CR2 |= I2C_CR2_START;  // generate start
-	while (!(I2C->SR1 & I2C_SR1_SB))
+    I2C->CR2 |= I2C_CR2_START;  // generate start
+    while (!(I2C->SR1 & I2C_SR1_SB))
         CHECK_ERROR()
-	I2C->SR1; // clear SB bit
-	I2C->DR = deviceAddress << 1;
-	while (!(I2C->SR1 & I2C_SR1_ADDR))
+    I2C->SR1; // clear SB bit
+    I2C->DR = deviceAddress << 1;
+    while (!(I2C->SR1 & I2C_SR1_ADDR))
         CHECK_ERROR()
-	I2C->SR1; // clear ADDR bit
-	I2C->SR3;
-	while (!(I2C->SR1 & I2C_SR1_TXE))
+    I2C->SR1; // clear ADDR bit
+    I2C->SR3;
+    while (!(I2C->SR1 & I2C_SR1_TXE))
         CHECK_ERROR()
-	I2C->DR = deviceRegister;
-	uint16_t i = 0;
-	while (i < txSize) {
+    I2C->DR = deviceRegister;
+    uint16_t i = 0;
+    while (i < txSize) {
         while(!(I2C->SR1 & I2C_SR1_TXE))
             CHECK_ERROR()
-		I2C->DR = txBuff[i++];
-	}
-	while(!(I2C->SR1 & I2C_SR1_TXE) && !(I2C->SR1 & I2C_SR1_BTF))
+        I2C->DR = txBuff[i++];
+    }
+    while(!(I2C->SR1 & I2C_SR1_TXE) && !(I2C->SR1 & I2C_SR1_BTF))
         CHECK_ERROR()
-	I2C->CR2 |= I2C_CR2_STOP;
+    I2C->CR2 |= I2C_CR2_STOP;
     while(I2C->SR3 & I2C_SR3_BUSY) //wait for transaction finish
         CHECK_ERROR()
-	return TRUE;
+    return TRUE;
 }
 
 bool i2c_read(uint8_t deviceAddress, uint8_t deviceRegister, uint8_t rxBuff[], uint16_t rxSize) // rads only 1 byte
 {
-	if((I2C->SR3 & I2C_SR3_BUSY) || !rxBuff || !rxSize)
-		return FALSE;
+    if((I2C->SR3 & I2C_SR3_BUSY) || !rxBuff || !rxSize)
+        return FALSE;
     
-	I2C->CR2 |= I2C_CR2_START;  // generate start
-	while (!(I2C->SR1 & I2C_SR1_SB))
+    I2C->CR2 |= I2C_CR2_START;  // generate start
+    while (!(I2C->SR1 & I2C_SR1_SB))
         CHECK_ERROR()
-	I2C->SR1; // clear SB bit
-	I2C->DR = deviceAddress << 1;
-	while (!(I2C->SR1 & I2C_SR1_ADDR))
+    I2C->SR1; // clear SB bit
+    I2C->DR = deviceAddress << 1;
+    while (!(I2C->SR1 & I2C_SR1_ADDR))
         CHECK_ERROR()
-	I2C->SR1; // clear ADDR bit
-	I2C->SR3;
-	I2C->DR = deviceRegister;
-	while (!(I2C->SR1 & I2C_SR1_TXE))
+    I2C->SR1; // clear ADDR bit
+    I2C->SR3;
+    I2C->DR = deviceRegister;
+    while (!(I2C->SR1 & I2C_SR1_TXE))
         CHECK_ERROR()
-	I2C->CR2 |= I2C_CR2_START;
-	while (!(I2C->SR1 & I2C_SR1_SB))
+    I2C->CR2 |= I2C_CR2_START;
+    while (!(I2C->SR1 & I2C_SR1_SB))
         CHECK_ERROR()
-	I2C->DR = (deviceAddress << 1) | 0x01;
-	while (!(I2C->SR1 & I2C_SR1_ADDR))
+    I2C->DR = (deviceAddress << 1) | 0x01;
+    while (!(I2C->SR1 & I2C_SR1_ADDR))
         CHECK_ERROR()
-	I2C->CR2 &= ~I2C_CR2_ACK; // disable ACK
-	I2C->SR1; // clear ADDR bit
-	I2C->SR3;
+    I2C->CR2 &= ~I2C_CR2_ACK; // disable ACK
+    I2C->SR1; // clear ADDR bit
+    I2C->SR3;
     while (I2C->SR1 & I2C_SR1_ADDR)
         CHECK_ERROR()
-	I2C->CR2 |= I2C_CR2_STOP;
-	while(!(I2C->SR1 & I2C_SR1_RXNE))
+    I2C->CR2 |= I2C_CR2_STOP;
+    while(!(I2C->SR1 & I2C_SR1_RXNE))
         CHECK_ERROR()
-	rxBuff[0] = I2C->DR;
+    rxBuff[0] = I2C->DR;
     while(I2C->SR3 & I2C_SR3_BUSY) //wait for transaction finish
         CHECK_ERROR()
-	return TRUE;
+    return TRUE;
 }
 
 INTERRUPT_HANDLER(I2C_IRQHandler, 19)

@@ -23,7 +23,7 @@ void adcStop(void)
 {
     ADC1->CSR &= ~ADC1_CSR_EOCIE; // disable EOC interrupt
     ADC1->CR1 &= ~ADC1_CR1_CONT;
-	ADC1->CR1 &= ~ADC1_CR1_ADON;
+    ADC1->CR1 &= ~ADC1_CR1_ADON;
     adcBusy = FALSE;
 }
 
